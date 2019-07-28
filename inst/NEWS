@@ -1,3 +1,10 @@
+VERSION 0.99.5
+------------------------
+   o decompMode parameter is added in NTF and NTD
+   o NTF1, NTF2, NTD1, and NTD2 models are added
+   o Initial values of factor matrices are added
+   o Convergence is judged by relative error
+
 VERSION 0.99.4
 ------------------------
    o set.seeds argument is added in toyModel

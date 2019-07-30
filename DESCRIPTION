@@ -1,8 +1,8 @@
 Package: nnTensor
 Type: Package
 Title: Non-Negative Tensor Decomposition
-Version: 0.99.5
-Date: 2019-07-27
+Version: 1.0.0
+Date: 2019-07-30
 Author: Koki Tsuyuzaki, Manabu Ishii, Itoshi Nikaido
 Maintainer: Koki Tsuyuzaki <k.t.the-answer@hotmail.co.jp>
 Suggests: testthat
@@ -12,6 +12,6 @@ Description: Some functions for performing non-negative matrix factorization, no
 License: Artistic-2.0
 URL: https://github.com/rikenbit/nnTensor
 NeedsCompilation: no
-Packaged: 2019-07-28 06:39:17 UTC; tsuyusakikouki
+Packaged: 2019-07-30 12:54:55 UTC; tsuyusakikouki
 Repository: CRAN
-Date/Publication: 2019-07-28 07:20:02 UTC
+Date/Publication: 2019-07-30 21:50:04 UTC

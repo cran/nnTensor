@@ -101,6 +101,8 @@ detecting modules in heterogeneous omics multi-modal data,
 Y. Kenan Yilmaz et al., (2010) Probabilistic Latent Tensor Factorization,
 \emph{International Conference on Latent Variable Analysis and Signal Separation}
 346-353
+
+N. Fujita et al., (2018) Biomarker discovery by integrated joint non-negative matrix factorization and pathway signature analyses, \emph{Scientific Report}
 }
 \author{Koki Tsuyuzaki}
 

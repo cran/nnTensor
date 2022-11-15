@@ -1,7 +1,8 @@
 NTF <- function(X, M=NULL, pseudocount=.Machine$double.eps,
     initA=NULL, fixA=FALSE,
     L1_A=1e-10, L2_A=1e-10, rank = 3,
-    algorithm = c("Frobenius", "KL", "IS", "Pearson", "Hellinger", "Neyman", "HALS", "Alpha-HALS", "Beta-HALS", "Alpha", "Beta"), init = c("NMF", "ALS", "Random"), Alpha = 1,
+    algorithm = c("Frobenius", "KL", "IS", "Pearson", "Hellinger", "Neyman", "HALS", "Alpha-HALS", "Beta-HALS", "Alpha", "Beta"),
+    init = c("NMF", "ALS", "Random"), Alpha = 1,
     Beta = 2, thr = 1e-10, num.iter = 100, viz = FALSE, figdir = NULL,
     verbose = FALSE){
     # Argument check
@@ -32,6 +33,13 @@ NTF <- function(X, M=NULL, pseudocount=.Machine$double.eps,
         # Before Update An
         X_bar <- recTensor(rep(1, length = rank), A, idx=seq(N))
         pre_Error <- .recError(X, X_bar)
+        # Fill with Machine Epsilon
+        for (n in seq(N)) {
+            A[[n]][which(A[[n]] < pseudocount)] <- pseudocount
+            A[[n]][which(is.infinite(A[[n]]))] <- pseudocount
+            A[[n]][which(is.nan(A[[n]]))] <- pseudocount
+            A[[n]][which(is.nan(A[[n]]))] <- pseudocount
+        }
         # Update An
         if (algorithm == "Alpha") {
             for (n in seq(N)) {
@@ -158,13 +166,12 @@ NTF <- function(X, M=NULL, pseudocount=.Machine$double.eps,
                 E <- Xr - X_bar
             }
         }
-        else {
-            stop("Please specify the appropriate algorithm\n")
-        }
+        # Fill with Machine Epsilon
         for (n in seq(N)) {
-            if (any(is.infinite(A[[n]])) || any(is.nan(A[[n]]))) {
-                stop("Inf or NaN is generated!\n")
-            }
+            A[[n]][which(A[[n]] < pseudocount)] <- pseudocount
+            A[[n]][which(is.infinite(A[[n]]))] <- pseudocount
+            A[[n]][which(is.nan(A[[n]]))] <- pseudocount
+            A[[n]][which(is.nan(A[[n]]))] <- pseudocount
         }
         # After Update U, V
         iter <- iter + 1

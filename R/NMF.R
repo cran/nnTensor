@@ -191,10 +191,10 @@ NMF <- function(X, M=NULL, pseudocount=.Machine$double.eps,
     if (viz && is.null(figdir)) {
         image.plot(X_bar)
     }
-    names(RecError) <- c("offset", 1:(iter-1))
-    names(TrainRecError) <- c("offset", 1:(iter-1))
-    names(TestRecError) <- c("offset", 1:(iter-1))
-    names(RelChange) <- c("offset", 1:(iter-1))
+    names(RecError) <- c("offset", seq_len(iter-1))
+    names(TrainRecError) <- c("offset", seq_len(iter-1))
+    names(TestRecError) <- c("offset", seq_len(iter-1))
+    names(RelChange) <- c("offset", seq_len(iter-1))
 
     list(U = U, V = V, RecError = RecError,
         TrainRecError = TrainRecError,
@@ -264,7 +264,6 @@ NMF <- function(X, M=NULL, pseudocount=.Machine$double.eps,
     if(!fixU){
         if(algorithm == "ALS"){
             U <- .positive(X %*% ginv(t(V)))
-            # U <- .positive(X %*% V %*% ginv(t(V) %*% V))
         }
         if(algorithm == "PGD"){
             U <- .positive(U - eta * (-2 * (pM * X) %*% V +
@@ -332,7 +331,6 @@ NMF <- function(X, M=NULL, pseudocount=.Machine$double.eps,
     if(!fixV){
         if(algorithm == "ALS"){
             V <- .positive(t(X) %*% ginv(t(U)))
-            # V <- .positive(t(X) %*% U %*% ginv(t(U) %*% U))
         }
         if(algorithm == "PGD"){
             V <- .positive(V - eta * (-2 * t(pM * X) %*% U +
@@ -378,10 +376,6 @@ NMF <- function(X, M=NULL, pseudocount=.Machine$double.eps,
         }
     }
     V
-}
-
-plot <- function(x, ...){
-    UseMethod("plot", x, ...)
 }
 
 plot.NMF <- function(x, ...){
@@ -474,8 +468,8 @@ plot.NMF <- function(x, ...){
     df <- df[which(!is.na(df$Value)), ]
     g <- ggplot(df, aes(Rank, Value, group=Type , colour=Type))
     g <- g + geom_point()
-    g <- g + stat_summary(fun.y = "mean", geom="line", size = 2)  
-    g <- g + stat_summary(fun.data = "mean_se", geom="errorbar")
+    g <- g + stat_summary(fun = "mean", geom="line", linewidth = 2)
+    g <- g + stat_summary(fun.data = mean_se, geom="errorbar")
     g <- g + geom_vline(xintercept=BestRank, linetype="dashed")
     g
 }
@@ -490,8 +484,8 @@ plot.NMF <- function(x, ...){
     df <- df[which(!is.na(df$Value)), ]
     g <- ggplot(df, aes(Rank, Value, group=Type , colour=Type))
     g <- g + geom_point()
-    g <- g + stat_summary(fun.y = "mean", geom="line", size = 0.5)
-    g <- g + stat_summary(fun.data = "mean_se", geom="errorbar")
+    g <- g + stat_summary(fun = "mean", geom="line", linewidth = 0.5)
+    g <- g + stat_summary(fun.data = mean_se, geom="errorbar")
     g <- g + geom_vline(xintercept=BestRank, linetype="dashed")
     g <- g + facet_wrap(~Method, scales="free", nrow=2)
     g

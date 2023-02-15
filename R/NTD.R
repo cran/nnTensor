@@ -1,6 +1,7 @@
 NTD <- function(X, M=NULL, pseudocount=.Machine$double.eps,
     initS=NULL, initA=NULL, fixS=FALSE, fixA=FALSE,
-    L1_A=1e-10, L2_A=1e-10, rank = c(3, 3, 3), modes = 1:3,
+    L1_A=1e-10, L2_A=1e-10, rank = rep(3, length=length(dim(X))),
+    modes = seq_along(dim(X)),
     algorithm = c("Frobenius", "KL", "IS", "Pearson", "Hellinger", "Neyman", "HALS", "Alpha", "Beta", "NMF"),
     init = c("NMF", "ALS", "Random"),
     nmf.algorithm = c("Frobenius", "KL", "IS", "Pearson", "Hellinger", "Neyman", "Alpha", "Beta", "ALS", "PGD", "HALS", "GCD", "Projected", "NHR", "DTPP", "Orthogonal", "OrthReg"),
@@ -175,10 +176,10 @@ NTD <- function(X, M=NULL, pseudocount=.Machine$double.eps,
     if (viz && is.null(figdir) && N == 3) {
         plotTensor3D(X_bar)
     }
-    names(RecError) <- c("offset", 1:(iter-1))
-    names(TrainRecError) <- c("offset", 1:(iter-1))
-    names(TestRecError) <- c("offset", 1:(iter-1))
-    names(RelChange) <- c("offset", 1:(iter-1))
+    names(RecError) <- c("offset", seq_len(iter-1))
+    names(TrainRecError) <- c("offset", seq_len(iter-1))
+    names(TestRecError) <- c("offset", seq_len(iter-1))
+    names(RelChange) <- c("offset", seq_len(iter-1))
 
     return(list(S = S, A = A,
         RecError = RecError,
@@ -275,13 +276,10 @@ NTD <- function(X, M=NULL, pseudocount=.Machine$double.eps,
         } else if (init == "ALS") {
             sapply(modes, function(n) {
                 Xn <- cs_unfold(X, m = n)@data
-                An <- .positive(svd(Xn)$u[1:rank[n], ])
-                if(is.vector(An)){
-                    An <- as.matrix(An)
-                }
-                A[[n]] <<- t(apply(An, 1, function(x) {
-                    x/norm(as.matrix(x), "F")
-                }))
+                res.svd <- svd(Xn)
+                An <- t(.positive(res.svd$v[, seq(rank[n])]))
+                A[[n]] <<- t(apply(An, 1, function(x){
+                    x/norm(as.matrix(x), "F")}))
             })
         } else if (init == "Random") {
             sapply(modes, function(n) {

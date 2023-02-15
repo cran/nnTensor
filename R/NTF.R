@@ -2,7 +2,7 @@ NTF <- function(X, M=NULL, pseudocount=.Machine$double.eps,
     initA=NULL, fixA=FALSE,
     L1_A=1e-10, L2_A=1e-10, rank = 3,
     algorithm = c("Frobenius", "KL", "IS", "Pearson", "Hellinger", "Neyman", "HALS", "Alpha-HALS", "Beta-HALS", "Alpha", "Beta"),
-    init = c("NMF", "ALS", "Random"), Alpha = 1,
+    init = c("NMF", "ABS-SVD", "ALS", "Random"), Alpha = 1,
     Beta = 2, thr = 1e-10, num.iter = 100, viz = FALSE, figdir = NULL,
     verbose = FALSE){
     # Argument check
@@ -208,10 +208,10 @@ NTF <- function(X, M=NULL, pseudocount=.Machine$double.eps,
     if (viz && is.null(figdir) && N == 3) {
         plotTensor3D(X_bar)
     }
-    names(RecError) <- c("offset", 1:(iter-1))
-    names(TrainRecError) <- c("offset", 1:(iter-1))
-    names(TestRecError) <- c("offset", 1:(iter-1))
-    names(RelChange) <- c("offset", 1:(iter-1))
+    names(RecError) <- c("offset", seq_len(iter-1))
+    names(TrainRecError) <- c("offset", seq_len(iter-1))
+    names(TestRecError) <- c("offset", seq_len(iter-1))
+    names(RelChange) <- c("offset", seq_len(iter-1))
 
     # normalization
     S <- apply(A[[N]], 1, function(an){
@@ -294,15 +294,17 @@ NTF <- function(X, M=NULL, pseudocount=.Machine$double.eps,
                 if(rank != 1){
                     A[[n]] <- A[[n]][orderA, ]
                 }
+            } else if (init == "ABS-SVD") {
+                Xn <- cs_unfold(X, m = n)@data
+                res.svd <- svd(Xn)
+                A[[n]] <- t(.positive(res.svd$v[, seq(rank)]))
+                orderA <- order(sapply(res.svd$d[seq(rank)], function(x) {
+                    norm(as.matrix(x), "F")
+                }), decreasing = TRUE)
             } else if (init == "ALS") {
                 Xn <- cs_unfold(X, m = n)@data
                 res.svd <- svd(Xn)
-                tmpA <- .positive(res.svd$u[seq(rank), ])
-                if(rank == 1){
-                    A[[n]] <- t(tmpA)
-                }else{
-                    A[[n]] <- tmpA
-                }
+                A[[n]] <- t(abs(res.svd$v[, seq(rank)]))
                 orderA <- order(sapply(res.svd$d[seq(rank)], function(x) {
                     norm(as.matrix(x), "F")
                 }), decreasing = TRUE)

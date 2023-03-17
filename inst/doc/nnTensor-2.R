@@ -22,8 +22,8 @@ str(out_siNMF_Easy, 2)
 
 ## ----conv_sinmf_easy, echo=TRUE, fig.height=4, fig.width=8--------------------
 layout(t(1:2))
-plot(log10(out_siNMF_Easy$RecError[2:101]), type="b", main="Reconstruction Error")
-plot(log10(out_siNMF_Easy$RelChange[2:101]), type="b", main="Relative Change")
+plot(log10(out_siNMF_Easy$RecError[-1]), type="b", main="Reconstruction Error")
+plot(log10(out_siNMF_Easy$RelChange[-1]), type="b", main="Relative Change")
 
 ## ----rec_sinmf_easy, echo=TRUE, fig.height=5.3, fig.width=8-------------------
 recX1 <- out_siNMF_Easy$W %*% t(out_siNMF_Easy$H[[1]])

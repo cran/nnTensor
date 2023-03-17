@@ -12,8 +12,8 @@ str(out_NMF, 2)
 
 ## ----conv_nmf, echo=TRUE, fig.height=4, fig.width=8---------------------------
 layout(t(1:2))
-plot(log10(out_NMF$RecError[2:101]), type="b", main="Reconstruction Error")
-plot(log10(out_NMF$RelChange[2:101]), type="b", main="Relative Change")
+plot(log10(out_NMF$RecError[-1]), type="b", main="Reconstruction Error")
+plot(log10(out_NMF$RelChange[-1]), type="b", main="Relative Change")
 
 ## ----rec_nmf, echo=TRUE, fig.height=4, fig.width=8----------------------------
 recX <- out_NMF$U %*% t(out_NMF$V)
@@ -36,8 +36,8 @@ str(out_NMTF, 2)
 
 ## ----conv_nmtf, echo=TRUE, fig.height=4, fig.width=8--------------------------
 layout(t(1:2))
-plot(log10(out_NMTF$RecError[2:101]), type="b", main="Reconstruction Error")
-plot(log10(out_NMTF$RelChange[2:101]), type="b", main="Relative Change")
+plot(log10(out_NMTF$RecError[-1]), type="b", main="Reconstruction Error")
+plot(log10(out_NMTF$RelChange[-1]), type="b", main="Relative Change")
 
 ## ----rec_nmtf, echo=TRUE, fig.height=4, fig.width=8---------------------------
 recX2 <- out_NMTF$U %*% out_NMTF$S %*% t(out_NMTF$V)

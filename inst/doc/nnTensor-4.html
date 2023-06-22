@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+<meta name="date" content="2023-06-22" />
+
+<title>4. Cross-validation by mask matrix/tensor (kFoldMaskTensor)</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+<style type="text/css">
+
+div.csl-bib-body { }
+div.csl-entry {
+clear: both;
+}
+.hanging div.csl-entry {
+margin-left:2em;
+text-indent:-2em;
+}
+div.csl-left-margin {
+min-width:2em;
+float:left;
+}
+div.csl-right-inline {
+margin-left:2em;
+padding-left:1em;
+}
+div.csl-indent {
+margin-left: 2em;
+}
+</style>
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">4. Cross-validation by mask matrix/tensor
+(<code>kFoldMaskTensor</code>)</h1>
+<h4 class="author">Koki Tsuyuzaki</h4>
+<address class="author_afil">
+Laboratory for Bioinformatics Research, RIKEN Center for Biosystems
+Dynamics Research<br><a class="author_email" href="mailto:#"><a href="mailto:k.t.the-answer@hotmail.co.jp" class="email">k.t.the-answer@hotmail.co.jp</a></a>
+</address>
+<h4 class="author">Itoshi Nikaido</h4>
+<address class="author_afil">
+Laboratory for Bioinformatics Research, RIKEN Center for Biosystems
+Dynamics Research<br><h4 class="date">2023-06-22</h4>
+
+
+
+<div id="introduction" class="section level1">
+<h1>Introduction</h1>
+<p>In this vignette, we introduce a cross-validation approach using mask
+tensor <span class="citation">(Fujita 2018; Owen 2009)</span> to
+estimate the optimal rank parameter for matrix/tensor decomposition.
+Mask matrix/tensor has the same size of data matrix/tensor and contains
+only 0 or 1 elements, 0 means not observed value, and 1 means observed
+value. In this approach, only non-zero and non-NA elements are randomly
+specified as 0 and estimated by other elements reconstructed by the
+result of matrix/tensor decomposition. This can be considered a
+cross-validation approach because the elements specified as 1 are the
+training dataset and the elements specified as 0 are the test
+dataset.</p>
+<p>Here, we use these packages.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(<span class="st">&quot;nnTensor&quot;</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(<span class="st">&quot;ggplot2&quot;</span>)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(<span class="st">&quot;dplyr&quot;</span>)</span></code></pre></div>
+<pre><code>## 
+## Attaching package: &#39;dplyr&#39;</code></pre>
+<pre><code>## The following objects are masked from &#39;package:stats&#39;:
+## 
+##     filter, lag</code></pre>
+<pre><code>## The following objects are masked from &#39;package:base&#39;:
+## 
+##     intersect, setdiff, setequal, union</code></pre>
+<p>Here, we use three types of demo data as follows:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>data_matrix <span class="ot">&lt;-</span> <span class="fu">toyModel</span>(<span class="st">&quot;NMF&quot;</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>data_matrices <span class="ot">&lt;-</span> <span class="fu">toyModel</span>(<span class="st">&quot;siNMF_Easy&quot;</span>)</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>data_tensor <span class="ot">&lt;-</span> <span class="fu">toyModel</span>(<span class="st">&quot;CP&quot;</span>)</span></code></pre></div>
+</div>
+<div id="nmf" class="section level1">
+<h1>NMF</h1>
+<p>To set mask matrix/tensor, here we use <code>kFoldMaskTensor</code>,
+which divides only the elements other than NA and 0 into <code>k</code>
+mask matrices/tensors. In <code>NMF</code>, the mask matrix can be
+specified as <code>M</code> and the rank parameter (<code>J</code>) with
+the smallest test error is considered the optimal rank. Here, three mask
+matrices are prepared for each rank, and the average is used to estimate
+the optimal rank.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>out_NMF <span class="ot">&lt;-</span> <span class="fu">expand.grid</span>(<span class="at">replicate=</span><span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>, <span class="at">rank=</span><span class="fu">factor</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>), <span class="at">value=</span><span class="dv">0</span>)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>count <span class="ot">&lt;-</span> <span class="dv">1</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>){</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  masks_NMF <span class="ot">&lt;-</span> <span class="fu">kFoldMaskTensor</span>(data_matrix, <span class="at">k=</span><span class="dv">3</span>)</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span>(j <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>){</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    out_NMF[count, <span class="dv">3</span>] <span class="ot">&lt;-</span> <span class="fu">rev</span>(</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>      <span class="fu">NMF</span>(data_matrix,</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>        <span class="at">M =</span> masks_NMF[[j]],</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>        <span class="at">J =</span> i)<span class="sc">$</span>TestRecError)[<span class="dv">1</span>]</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>    count <span class="ot">&lt;-</span> count <span class="sc">+</span> <span class="dv">1</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
+<p>Looking at the average test error for each rank, the optimal rank
+appears to be around 8 to 10 (with some variation depending on random
+seeds).</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(out_NMF, <span class="fu">aes</span>(<span class="at">x=</span>rank, <span class="at">y=</span>value)) <span class="sc">+</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="fu">geom_point</span>() <span class="sc">+</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="fu">stat_summary</span>(<span class="at">fun =</span> mean, <span class="at">geom =</span> <span class="st">&quot;point&quot;</span>, <span class="at">shape=</span><span class="dv">21</span>, <span class="at">size=</span><span class="dv">3</span>, <span class="at">fill=</span><span class="st">&quot;blue&quot;</span>) <span class="sc">+</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="fu">stat_summary</span>(<span class="at">fun =</span> mean, <span class="at">geom =</span> <span class="st">&quot;line&quot;</span>, <span class="at">colour =</span> <span class="st">&quot;blue&quot;</span>, <span class="fu">aes</span>(<span class="at">group=</span><span class="dv">1</span>)) <span class="sc">+</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="fu">xlab</span>(<span class="st">&quot;Rank&quot;</span>) <span class="sc">+</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="fu">ylab</span>(<span class="st">&quot;Test Reconstruction Error&quot;</span>)</span></code></pre></div>
+<p><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA8AAAAGACAIAAADtc5yJAAAACXBIWXMAAA7DAAAOwwHHb6hkAAAgAElEQVR4nOzdeVxU5f4H8O+ZfYGZAURwIcRCUEEq9brmnuKCu7a51a3Uaxpc/eEW7luiGbl0E81MyyVLc0lMxSWXSk1NTcV9wRRB9plhtvP74yQRggM6M2eG83n/0WvmGcCP03HmwzPPeQ7DsiwBAAAAAEDFiPgOAAAAAADgSVCgAQAAAAAqAQUaAAAAAKASUKABAAAAACoBBRoAAAAAoBJQoAEAAAAAKkHCd4AnlJ+fz3eEsslkMiIymUx8B+GTSCSSy+VFRUU2m43vLHySy+Usywr8YBCLxTKZzGg0CnzHTLlcbrPZzGYz30H4hIOBo1AorFarwA8GiUQilUoNBgPfQXimUCgsFovFYuE7CJ8kEolEIjEajXwHKZtEIlEqlWWMuz6KQxQVFfEdoWxyuZxhGLeN5xpSqVStVhcUFAj8RUGhULAsK/CDQSaTqVQqs9lstVr5zsInlUpls9kEfjDI5XKJRFJUVCTwAq1Wq81ms8APBpFIxB0MfAfhmZeXl8lkEvjzIBaL3flgYFm2zAKNJRwAAAAAAJWAAg0AAAAAUAko0AAAAAAAlYACDQAAAABQCSjQAAAAAACVgAINAAAAAFAJKNAAAAAAAJWAAg0AAAAAUAko0AAAAAAAlYACDQAAAABQCZ56KW/39NNPP6WkpLAs26VLl7Zt2/IdBwAAAAAcDwXaYdauXRsXF8fdTk5Onj9//ptvvslvJAAAAABwOCzhcJhZs2aVvDtnzhy+kgAAAACA86BAO4DNZhs5cmRWVjjRD0QPiB4Q7czJiXz77betVivf6QAAAADAkVCgHeDTTz/dtMlEdICoK5EPkQ9RNNG+778XL168mO90AAAAAOBIKNBPy2azLV++nGgpkfifj4iJlq5YsQKT0AAAAABVCQr000pPT79zx4+odlkPBt67V+v69esujgQAAAAAzoMC/bQKCgqIvMt/XFNYWOi6NAAAAADgZCjQT6tGjRpE14nYch6/WqtWLVfmAQAAAACnQoF+WjqdrnXrukTby3ows0mTUD8/P1dnAgAAAACnQYF2gGnTphG9R/TLP4fTiBSZmVtu3hSX+V0AAAAA4IlQoB0gKipq69Ylfn7diboRzSSaSdTdx6f5okW/Wq2ql1/WHTki5TsjAAAAADgGCrRjtGjR4uzZs5Mnv9i06bYmTbZOmNDo3LlzgwY12rkzJyTEOmCAZv16Od8ZAQAAAMABJHwHqDokEklsbOyUKVMYhsnNzeUGAwJsW7fmxsZ6jR7t/fvvklmzCkX4nQUAAADAk6FAO51Mxi5dmh8ebpk9W33tmnj58nxv7/K27AAAAAAAd4fpUFdgGBozxrBiRf7hw9IePbS3b+NpBwAAAPBUaHKuExNT9MMPubm5ouho3W+/Ye4fAAAAwCOhQLtURIQlJSWnRg1bTIz2m29wWiEAAACA50GBdrXAQNv33+e+/LJ51CjvmTPVNhvfgQAAAACgMlCgeaBSsatW5Y0bp1+8WPnOO94GA8N3IgAAAACoKGcV6OPHj48YMaL47qlTp0aNGjV06NBly5ZZrdbKDlY9DEPx8frly/N//FHWvbv2zh38JgMAAADgGZzS2zIyMpYtW8ayf23WZjAYEhMTY2Njk5OTMzIyduzYUanBKqx376Lvvsu9e1cUHa07fRqnFQIAAAB4AMeXNovFsnDhwtdff/2bb77hRk6cOFGvXr3Q0FAi6tWr1/r163v27FnxQe6H2Gy2goIC7rZcLmcYt172UPF4//qXde/e3Dfe8O7ZU/vppwXdu5ucGsyVGIZx8/9NLoAnofivL/DngSPwJ4H76wv8SeDglYGDJ4FwMDzktk9CecEcX6BXrFjRpk2bevXqFY9kZmYGBARwtwMCAjIzMys1yMnIyOjRowd3e+jQoaNHj3Z4cgfy8/OrzBfTkSM0aBANG+Y9ZQpNm+a0WK6l1Wr5juAWKnUwVFU+Pj58R+CfWCxWKBR8p+Cfr68v3xH4p1QqlUol3yn4h5dHIlKpVCqViu8U/HPbg8FisZQ57uAC/dNPP+Xn53fv3v3mzZslx4v7O8uyxUs7Kj5IRDqdbt68edztOnXq5OfnOza5o3CviQaDobLf+MUXNGOGfPp02blzlqVLDR790ioWi1UqVWFhoU3Ym4yoVCqWZZ/gYKhKJBKJUqnEwaBWq61Wq9Fo5DsIn6RSqUKhKCgoKPnaLkBeXl5ms7moqIjvIHySyWRyudxt38pdxtvbu6ioyGSqOh8+PwGZTCaTyYpXGbgbkUgkkZTRlh1coI8cOXLy5MlBgwZZrVa9Xj9o0KClS5f6+fmdOXOG+4LMzMxq1aoRUcUHOQqFolOnTsV3S05OuxVuecmTvTJOmlQUHKyIj/e6cUO5enWev7+nFg6pVEpEZrO5vN/bBEKhUNhsNoG/TbIsq1QqTSZTFT4nuCJUKpXVahX4wUBECoWiqKhI4AVarVZbLBaBHwwikUgulwv8SSAiLy8vHAxisZiI3PZJkMlkZY47+CTC8ePHr1+/fu3atR9++GFgYODatWu1Wm3jxo3T0tLS09NZlk1JSWnVqhURVXxQUN54w7h5c+7Vq6JOnXRnzuC0QgAAAAC344qKplKp4uLi5s2bZzabGzVqxC1lrvig0PzrX+aUlNw33tDExGj/97/86GhBf7IDAAAA4G4YD/0ozW2XcGg0GoZhcnNzn/LnFBQw777rnZoqmzSpcMwYD1tEK5VKtVptTk6OwJdwaLVam80m8EV+MplMo9FkZ2cLfAmHj4+P2Wx220V+riGXy729vbOysjz0fcdRfH19jUajXq/nOwiflEqlWq1227dyl/Hz89Pr9QI/VUalUimVyqysLL6DlI17F3t0HNfvcFNeXuyaNXlvvWWYOVMdF+dlNvMdCAAAAACICAXanYnFNGdO4cKFBRs2KPr00WZl4X8WAAAAAP/QydzdkCHGr7/OvXBBEh2tTUsT8x0HAAAAQOhQoD1Au3bmH3/MkUgoOlq3e3fZ26kAAAAAgGugQHuGunWtP/yQExVlGTxYs2KFJ19kBQAAAMDDoUB7DB8f9ptvcocNM06cqB47FqcVAgAAAPADl+rwJBIJzZtXULeudcoU9c2b4hUr8rRaQe8GBQAAAOB6mIH2PO++a/j667zffpN07qy7fBmnFQIAAAC4FAq0R+rQwbR9e47ZTN266Q4dkvIdBwAAAEBAUKA9Vf361j17csLDLQMGaFetUvAdBwAAAEAoUKA9mK8vu2lTXv/+RfHxXpMmqYV9pWQAAAAAF8FJhJ5NJmMXL86PjLQkJKivXBGvWJHv7Y3TCgEAAACcCDPQVcG77xpWrsz7+Wdp9+7aW7dwWiEAAACAE6FAVxE9eph27szNzxd16qQ9ehSnFQIAAAA4Cwp01dGggSUlJadOHVv//poNG+R8xwEAAAComlCgq5SAANvWrbk9e5ree8970iS1zcZ3IAAAAIAqBycRVjVyObtsWX79+pbZs9V//ilatqxAqcRphQAAAAAOgxnoKohhaMwYQ3Jy/t69sq5dtbdv4/8yAAAAgMOgWlVZPXsWbd6ce/++KDpad/IkPmoAAAAAcAwU6KqscWPLnj05gYG2mBjtt9/itEIAAAAAB0CBruJq1LBt3ZrbsaN55EjvmTPVLJZDAwAAADwdFOiqT6Viv/gib9w4/SefKN95x9toZPhOBAAAAODBUKAFgWEoPl6/fHl+SoqsTx9tRgb+vwMAAAA8IRQpAenTp2jz5rwbN0SdOulOn8ZphQAAAABPAgVaWJo2Naek5Gq1bK9e2h9+kPEdBwAAAMDzoEALzjPPWFNSclq3Ng8bppk/X8V3HAAAAAAPgwItRGo1u3p13ujRhsRE1fDh3kVFOK0QAAAAoKJQoAVKLKaEhMJFiwq2bZP36aPJzMSRAAAAAFAhqE2CNmiQcfPm3KtXxdHR2gsXxHzHAQAAAPAAKNBC16yZOSUlVy6nrl11u3bhtEIAAAAAO1CggerUse7YkfPii5ahQzWffKLkOw4AAACAW0OBBiIinY7dsCH3zTcNM2eq//tfL7OZ70AAAAAA7goFGv4ikdDcuYULFxasX6/o21f74AGODQAAAIAyoCTBPwwZYvzqq9zz5yXR0dpLl3BaIQAAAEBpKNBQWvv25h9/zBGLqVs33cGDUr7jAAAAALgXFGgoQ9261h9+yGnY0PLKK9oVKxR8xwEAAABwIxK+AzwhqdRNZ0YZhmEYxm3jVVz16rR5sz4uTjlxotfFi7IFCwySCh8sYrGYiCQSCcMI+hqHDMOIRKIqcDA8jeKDQSQS+q/rOBi4g0EqlbIsy3cWnonFYoEfDNwLgsCfBA4OBjc/GLgXrkd5aoEu7+/DO65Au228SlEq6X//MzVqxE6cKL91S/zll0aNpkJve9xfH4WJ+/2hahwMT4z764vFYvw2VWVeGZ4Y95ogFosFXqBxMFCJg4HvIDzj5lkE/jy4+cFQ3puXpxZoo9HId4SyyWQyhmHcNt4TeOstY3Bw0TvveLdpo/jqq7xnn7Xa/RapVKpUKk0mk8VicUFCtyWXy202W1U6GJ6ATCZTKBRFRUVWq/0jpwpTKpVWq1XgB4NcLlcoFEajUeAFWqVSWSwWgR8MDMPI5XKBPwlEpFarzWazwJ8H7tM5t30SZLKyrzEn9DlCqIiOHU07duSaTNStm+7wYTf9kAUAAADANVCgoULq17fs2ZNbr55l4EDt+vU4rRAAAACECwUaKsrX1/btt3l9+hSNHu01aZLaZuM7EAAAAAAfPHUNNPBCJmMXL86vV88ye7b66lVxcnK+t7eg1zICAACAAGEGGiqHYWjMGMPKlflHjkh79NDeuoVDCAAAAITlce3n6tWrMTExN27ccFka8BQ9ehTt3Jmblyfq1En388+lTyv8448/Nm/enJaWxks2AAAAAKd6XIGuXbv2zz//nJqa6rI04EEaNrTs3JkTHGzr10+zcaOcG2RZdsyYMS1btuzbt2+zZs0mTpzIb0gAAAAAh3vcGmiZTPb555+PGzcuKysrKipKpVIVP9SqVSvnZwN3Fxho27Yt9/33vd57z/viRcnkyYU//LBj3bp1xV+wYsWKzp07t2/fnseQAAAAAI5l5yTCvn37EtGj84hms9lZicCjyOXsp5/m161rXbBAdfGi5dy5uUTNiQYQ1Sa6TrRx4sSJu3bt0mq1fCcFAAAAcAw7BRpFGexiGIqP14eGmkeMUNhsPxFVL/Hg/125MvWtt97atGmTwK/kDAAAAFWG/W3sWJY9ePDghQsXLBZLgwYN2rVrhyYEj5JKN9tsZ4kW/HOYIZpx8GD71NTUjh078pMMAAAAwKHsFOj79+937dr11KlTwcHBIpHo+vXrUVFRO3fu9Pf3d00+8BR79uwh6l7Og2/s2bMHBRoAAACqBjub+MbGxkql0mvXrl25cuXSpUtXr16VyWRxcXGuCQceJCMjg6h2OQ8+c+/ePZemAQAAAHAaOzPQe/fu3bBhQ1BQEHc3KCho/vz5AwYMcH4w8DBarZYoq5wHM318fFyaBgAAAMBp7MxAsyz76IpnlsXVm6G0li1bEm0t58HvW7Zs6dI0AAAAAE5jp0B37NgxPj7+1q1b3N309PTx48d36NDB+cHAwwwYMCAkZD/Rjkce2RIWdjomJsb1kQAAAACcwU6BTkpKslqtISEhoaGhoaGhderUMRqNSUlJrgkHHkShUKxZs6ZatWFEI4j2El0k+onI4uV1fc2aNTKZjO+AAAAAAI5hZw20v7//r7/+euDAgfPnz7MsGx4e3r59e2xjB2UKCwvr06dPcvJnRJ89HFtgMIyRSPKJbHwmAwAAAHCcx81AX716NSYm5ubNm+3atRs5cuR//vOfDh06oD3DY0RERPxzYIZabZk1S81PGgAAAAAneFyBrl279s8//5yamuqyNODp+vfv37Rp0+K7rVs3mjTJvHmz/JdfpDymAgAAAHCgxy3hkMlkn3/++bhx47KysqKiolQqVfFDrVq1cn428Dwymez777/fsWPH7du3g4ODu3XrRmRavdoyebL6xx9zRHaW3AMAAAB4ADtroPv27UtEEydOLDVuNpudlQg8nFQqHTBggFarzcnJsVgsRDR7dmHfvtpvv5UPGFDEdzoAAACAp2VnStBcDteEg6rhpZfML79smjlTrddjAT0AAAB4PPsnEd64ccNlaaCqmjGjMDNTtHSpku8gAAAAAE8LJxGCKzz3nHXYMMMnnyhv38Y6aAAAAPBsOIkQXCQ+Xv/tt4p589RLluTznQUAAADgyeEkQnARnY4dO1b/wQfqt94yvPiihe84AAAAAE8IJxGC67z1liEszPrBB14sy3cUAAAAgCeFBangOhIJJSQUHjsm2bpVzncWAAAAgCdUdoHu2rXrhQsXuNt//vnn9OnTix86ceKEVIqrysET6tzZ1L69aepUtcGALe0AAADAI5VdoFNSUnJzc7nbd+7cmTZtWslHuatjADyZmTML790TffaZgu8gAAAAAE8CSzjA1cLCrIMGGT/+WHXvHg4/AAAA8DxoMMCDCRP0EgnNnauy/6UAAAAAbgYFGnjg52eLi9OvW6c4fdrORooAAAAA7gYFGvjxzjuGOnWsU6eq+Q4CAAAAUDnlzv9NnDjRz8+PiB48eEBEAwYM4Ma5uwBPSSajKVMKhw3T7Ngh697dxHccAAAAgIoqewa6d+/eWq3WYrFYLBaNRtO7d2/LQ9xdF6eEKql7d1PbtuapU9UmE7a0AwAAAI9R9gz05s2bn/gnbtiwYefOnRaLpWHDhu+99563tzcRnTp1Kjk5uaCgoFmzZsOHDxeLxZUahKpq+vTCjh11ycmKUaMMfGcBAAAAqBAHr4E+c+bMrl27FixYsHLlSiL65ptviMhgMCQmJsbGxiYnJ2dkZOzYsaNSg1CFNWxoefVV44IFqowMLMcHAAAAz+DgPRB0Ol1cXFy1atWIqGbNmizLEtGJEyfq1asXGhpKRL169Vq/fn3Pnj0rPsj9ZLPZfPnyZe62n5+fTCZzbHJHYRiGYRiJRNCbS3CfG1Tw04OpU4u2bpUvWKD+6KOqNgnNMIxIJMLBwP2XYYS+UAevDNzBIJFIuLcGIcMrg0gkIiKBPwkcHAxufjBw8R7l4LhBQUFBQUH79u1bsWKFRqNZtGgREWVmZgYEBHBfEBAQkJmZWalBTlZW1uDBg7nbQ4cOHT16tGOTO5ZOp+M7Av+41Tt26XQ0cSIlJMjj4uSRkc4OxQMcDESk0Wj4jsA/sVgsl8v5TsE/rVbLdwT+KRQKhQJXY8XLIxGRUqlUKpV8p+Cf2x4M5V1+2yl9v3379s8///zXX3/92Wefvf/++0RUPPnEsmzx3EPFB4nIz89vzZo1xbdzcnKckfzpqdVqhmEKCgr4DsIniUTi5eWVn59vtVor8vVvvUXJyZr33rN9/32Vet68vLxYli0sLOQ7CJ+kUqlarc7Ly7PZbHxn4ZO3t7fFYjEYqtrHLJUik8lUKlVubq7AZ6A1Go3JZDIajXwH4ZNcLlcqlW77Vu4yWq3WaDQWFRXxHYRPCoVCLpfn5ubyHaRsXKUpY9zudxqNxvT09JIjIpEoJCSkzC/eu3evRCJp27atj49Px44dP/roIyLy8/M7c+YM9wWZmZncAo+KD3KkUmn9+vWL75acnHYr3BtDeb+vCAT3W5DVaq3g8yAW0+TJhW+/7f3DD6LOnavOlnYsy9psNoEfDNyHX1artYK/TVVhLMsK/GDglnBYLBaBF2giwiuDVColwb9XcnAwcNMrbvsklLeEw86ZW998842Pj89z/xQREVHe18tkso0bN2ZkZOj1+h9//LFevXpE1Lhx47S0tPT0dJZlU1JSWrVqValBEIJevYqaNzdPnao2m/mOAgAAAPBYdmagJ0yYEB8f//bbb6tUqor8uNatW1+6dGns2LFEFBERMWLECCJSqVRxcXHz5s0zm82NGjXq0aNHpQZBIObMKezUSbdqlfLddwX9MTcAAAC4OebxH6XVrVv30qVLbrgZs9su4dBoNAzDuO1SHteQSqVarTYnJ6eyn8i89573rl2yX3554OtbFT7h1Wq1NpstPz+f7yB8kslkGo0mOztb4Es4fHx8zGazwM+OkMvl3t7eWVlZAl/C4evrazQa9Xo930H4pFQq1Wq1276Vu4yfn59erxf42REqlUqpVGZlZfEdpGzcu9ij43aWcDRp0uTWrVvOiQRQ2uTJhSYTLVhQoY87AAAAAHhhZwlHXFzcm2++2b9//wYNGpTcehmrk8EZatSwvfee4aOPVEOGGMPDBT1hCQAAAG7LToFu06YNER06dKjUuBmneoFzjB5tWLdOMWOG+uuv8/jOAgAAAFAGO0s4zOVwTTgQIIWCnTSpcPdu2b59bnqxSQAAABA4+/tAsyx78ODBCxcuWCyWBg0atGvXDpfkBafq169o1SrFBx+oDxwwueulPQEAAEC47NST+/fvd+3a9dSpU8HBwSKR6Pr161FRUTt37vT393dNPhAghqHp0wu7ddOtWaN4801BX6wLAAAA3JCdJRyxsbFSqfTatWtXrly5dOnS1atXZTJZXFyca8KBYDVpYunTp2juXHV2Nj7uAAAAAPdip0Dv3bt33rx5QUFB3N2goKD58+fv3bvX+cFA6KZOLTQa6eOPsaUdAAAAuBc7BZpl2UdXPAt8D3xwjZo1bSNHGlasUF654nbX8QEAAAAhs1OgO3bsGB8fX3wtlfT09PHjx3fo0MH5wQBozBiDr69txgw130EAAAAA/manQCclJVmt1pCQkNDQ0NDQ0Dp16hiNxqSkJNeEA4FTq9lJk/Q//CDbv1/KdxYAAACAv9jZhcPf3//XX389cODA+fPnWZYNDw9v3749trEDl3nlFePnnyumTVPv3ZsjxlIOAAAAcAPlFujPPvvs+eeft1gsRCSVShs1asSNHzlyhHApb3AVkYjmzCns3l27bp1i0CBsaQcAAAD8K7dAjxgxYsKECQsWLCjzUVyMEFymaVNz9+5Fs2erevYs0mhwAisAAADwrNw10NevXx8/fjwu5Q3uYPp0fX4+88kn2NIOAAAA+FdugQ4ODtbpdF27di01npOT079/fyenAviHZ56xvvuu8dNPldeuYR00AAAA8KzcJRwLFy4kopSUFO5GsStXruzfv9/ZsQBK+e9/9Rs2yGfNUq1cmc93FgAAABC0cgv0li1bSt3giESixMRE54YCeISXFzt+vH7sWK+jR40tWmAREQAAAPCm3AL9008/EVHTpk25GwC8GzTIuHq1YvJk9Z49OSI7O5gDAAAAOIudGnL48OGEhIQhQ4Zwd7t06RIXF2c0Yjcx4IFIRNOnF545I9m4Uc53FgAAABAuOwV63Lhxy5cvL971+f3339+5c+fEiROdHwygDK1bm6OjTbNnq/V6XM0HAAAA+GGnQG/cuPGjjz4aPnw4d7dbt25z5szZuHGj84MBlG3mzMIHD5jFi5V8BwEAAACBslOgLRZL3bp1S44EBQVhCQfwqE4d61tvGZcsUd66hXXQAAAAwAM7FaRDhw4zZ87Mycnh7hYUFMyaNatNmzbODwZQrnHj9CoVO2eOmu8gAAAAIER2CvSSJUvS09Nr167dvHnz1q1b165d+/z584sXL3ZNOIAyabVsfLz+22/lv/wi5TsLAAAACI6dAl29evWTJ09u2LChT58+0dHRK1euPHfuXO3atV0TDqA8w4YZw8OtU6eqWZbvKAAAACAw5e4DzcnNzSWi1q1bt27dmhvR6/VisdjLy8vp0QDKJxbTrFkF/fppv/tO3q9fEd9xAAAAQEDsFGidTvfoYPPmzY8ePeqcPAAV1aaNuWNH04wZ6m7dTEolJqIBAADARewU6AsXLhTfNhgMx48fX7p06cqVK52cCqBCZs4sbNvWZ9ky5dixer6zAAAAgFDYKdBhYWEl7z7//PPBwcGjR4/eu3evM1MBVEhoqHXoUGNSkvLVV421atn4jgMAAACCUOmddGvWrHns2DFnRAF4AuPHFyqVNG+eiu8gAAAAIBR2ZqDPnTtX8m52dvbcuXOxCwe4D52OjYvTT52qfust4wsvWPiOAwAAAFWfnQIdERFRaqR69epr1qxxWh6ASvv3vw1ffKGYPFm9Y0cuw/CdBgAAAKo6OwW6oKCg1Ihajcu/gXuRSmnatMLBgzXbt8tjYrClHQAAADjX49ZAX7169dVXX83MzFSX4LJkABUXHW1q3948bZqqqAhT0AAAAOBcjyvQtWvX/vnnn1NTU12WBuCJzZxZcOeO+LPPFHwHAQAAgCrucUs4ZDLZ559/Pm7cuKysrKioKJXq740OWrVq5fxsj6NUKvkNUB6xWExuHM81uCdBLpdLpVKX/aHPP09Dh1oWLVINHcoEBrrFdVVEIhHDMDgYiEgul7PCvuo6wzBisVjgB4NEIiEipVKJg0EqlQr8YODeHQT+JNDDg4HvFDwrfmXgO0jZRKKy55qZx7+Qlff/1Ww2OyDUU+CuMe6GVCoVwzCFhYV8B+ETd7H3goICq9Xqyj83M5N58UXvPn3MSUkGV/655VGr1SzL6vWCvsiLRCJRq9X5+fk2m6A36vby8rJarQaDWxyZfJFKpSqVKi8vT+AF2tvb22w2G41GvoPwSSaTKZVKt30rdxmNRlNUVFRUJOizd+RyuVwuz8vL4ztI2bh3sTLGH/9tvBfl8rhtMO6NwW3juZLFYrFYXLqvnFZLsbH6WbPUgwfro6L439KOZVmbzSbwg4FhGCKyWCwu/m3KDeFg4CZyzGazwAs0EVmtVoEfDNyko8CfBA4OBm6u1m2fBKac7b3sXEila9eupUZycnL69+/vmFAAjjZ8uKFOHeu0aTjbFQAAAJyl3BnohQsXElFKSgp3o9iVK1f279/v7FgAT0Ymo4QE/ZtveoR78IQAACAASURBVO/cKeva1cR3HAAAAKiCyi3QW7ZsKXWDIxKJEhMTnRsK4Cn06FHUsqViyhR1x45mmUzonxQDAACAw5VboH/66Sciatq0KXcDwIPMnl3YsaNu5UrFyJGCPmcLAAAAnMHOGuhjx44dPXr06tWrRLRjx46+ffvOmDHDbRd6A3AiIiyvvGJcuFD14IGdIxwAAACgsuzUi0WLFrVs2fLkyZP3798fOHCgyWRavHjx5MmTXRMO4IklJOhtNvrwQ5X9LwUAAACoDDsFOikpad68ef369du2bVuNGjW2bdu2fPnyjRs3uiYcwBPz97eNHm1YvVpx/rydvRoBAAAAKsVOgc7IyOjYsSMRpaamdu7cmWGYunXr3rt3zyXZAJ7Kf/5jqFnT+sEH2NIOAAAAHMlOgQ4LC9u0adONGze+//57bk/oAwcO1KxZ0yXZAJ6KXM4mJOgPHpTu2SPjOwsAAABUHXYK9IwZMxYtWhQSEvLss89GR0cvWLAgNjZ25MiRrgkH8JR69y5q1sw8ZYoaJ74CAACAo9gp0DExMZcvX969e/fhw4elUmnTpk137do1btw414QDeEoMQ3PmFF65Il69Wsl3FgAAAKgi7J9f5e/vbzKZ7t69S0S1a9cmomvXroWEhDg9GoAjNGpk6dev6MMPVX37Gn19cV0VAAAAeFp2ZqC/+eYbHx+f5/4pIiLCNeEAHCIhodBkoo8+wpZ2AAAA4AB2CvSECRPi4+Nv3ryZWcLNmzddEw7AIWrUsI0aZVi5UnnxopjvLAAAAODx7CzhYFl2ypQpYjFqB3i2MWMM69YpZs5Ur12bx3cWAAAA8Gx2ZqCbNGly69Yt10QBcB6Fgp04sXDXLtm+fdjSDgAAAJ6KnRnouLi4N998s3///g0aNJDJ/m4erVq1cnIwAAcbMKBo5UplQoJ6/36TBFcnBAAAgCdlp0e0adOGiA4dOlRq3IxtdcHTMAzNmlXQvbtu7VrFsGFGvuMAAACAp7KzhMNcDteEA3Cspk0tvXoVzZunystj+M4CAAAAnsr+J9ksyx48ePDChQsWi6VBgwbt2rVjGJQP8FTTphW2aOGzaJFq6tRCvrMAAACAR7JToO/fv9+1a9dTp04FBweLRKLr169HRUXt3LnT39/fNfkAHKtWLdvw4YZly1SDBxvr1rXyHQcAAAA8j50lHLGxsVKp9Nq1a1euXLl06dLVq1dlMllcXJxrwgE4Q2yswcfHNnOmmu8gAAAA4JHsFOi9e/fOmzcvKCiIuxsUFDR//vy9e/c6PxiAs6jV7MSJ+u3bZQcOSPnOAgAAAJ7HToFmWfbRFc8syzotD4ArvPaaMSrKMm2a2opFHAAAAFBJdgp0x44d4+Pji6+lkp6ePn78+A4dOjg/GIATiUQ0fXrh2bOSDRsUfGcBAAAAD2OnQCclJVmt1pCQkNDQ0NDQ0Dp16hiNxqSkJNeEA3CeVq3MPXqYZs1S5edjVxkAAACoBDu7cPj7+//6668HDhw4f/48y7Lh4eHt27fHNnZQNUybVtiype6TT5STJ+v5zgIAAAAew06BNplMM2fOvHHjxpdffklEXbp02bZt29y5cxUKfPANHi842Pruu8ZPP1UOGVIUFITV0AAAAFAhdpZwjBs3bvny5a1ateLuvv/++zt37pw4caLzgwG4wtixeq2WnTFDxXcQAAAA8Bh2CvTGjRs/+uij4cOHc3e7des2Z86cjRs3Oj8YgCt4ebH/93/6LVvkP/+MLe0AAACgQuwUaIvFUrdu3ZIjQUFBRqPRmZEAXGrwYGP9+pbJk9U2G99RAAAAwBPYKdAdOnSYOXNmTk4Od7egoGDWrFlt2rRxfjAAFxGLafbswt9/l2zaJOc7CwAAAHgAOycRLlmy5OWXX65du3ZERIREIjl79mz16tVTU1NdEw7ANV56ydy5s2nWLHWPHiaVCtcJAgAAgMexMwNdvXr1kydPbtiwoU+fPtHR0StXrjx37lzt2rVdEw7AZWbNKszKEi1ZouQ7CAAAALg7OwWaiAoKCjIyMsxm8wcffFC/fn1sAg1VUkiIddgww+LFytu37f+jAAAAACGz0xVu377dqlWrKVOmJCQkENGkSZMiIiKuX7/uimgArvV//6dXqdg5c9R8BwEAAAC3ZqdAjxw5MjIy8saNGxKJhIhWrFgREhISFxfnkmwALqXTsf/3f4ZNm+S//oot7QAAAKBcdk4iPHDgwJ49e0Siv3p2tWrVJk6c2KtXr8d8y969e9evX6/X60NDQ0eOHBkQEEBEp06dSk5OLigoaNas2fDhw8VicaUGAVxj2DDD6tWKqVPVP/yQg8VKAAAAUCY7M9BarbbUrs8Wi8Xb27u8r79z586qVavi4+NXrVr1zDPPJCUlEZHBYEhMTIyNjU1OTs7IyNixY0elBgFcRiKhqVMLjx+XbNmCLe0AAACgbHZmoLt16zZ16tTNmzdzd8+ePRsbGxsTE1Pe19+9e7dTp06hoaFE1Llz5wMHDhDRiRMn6tWrxw326tVr/fr1PXv2rPgg95ONRuOhQ4e423Xq1OEmtt0QN1svlwu6fnGfG0ilUk/8AKF7d+rUyTJ9ulevXoxS+VRb2olEIoZhBH4wcKu/ZDKZTdgXqmEYRiwWC/xgkEqlRCSXy1lW0JtFMgwjkUgEfjBwrwwCfxIIBwMRPewMbvskFK/CKMVOgZ4/f37v3r2rV69usVh8fX2zs7P79u2bmJhY3te/+OKLL774IhFZLJb169e3atWKiDIzM4v7bkBAQGZmZqUGOTk5ORMmTOBuDx06dPTo0fb/0vx5zCS9cKjVnno23iefUKNGlJzsNXmyA34aDgby5IPBgUQiEdcgBc7Ly4vvCPyTyWQymYzvFPzDyyMRyeVyt+2OruS2B4PFYilz3E6B1mq1+/bt++WXX86fP6/VaiMiIrjp4cc7cuTImjVrmjdvPnjwYG6kePM7lmWL5x4qPkhEJS/gIpfLs7Ky7Mbghbe3N8MweXl5fAfhk0Qi0Wq1ubm55R12bq56dRoyRD13rrxPn5yAgCefN9VoNCzL5ufnOzCbx5HJZN7e3tnZ2QKfgdbpdGazubCwkO8gfJLL5V5eXg8ePBD4DLSPj09RUZFer+c7CJ8UCoVarXbbt3KX8fX1NRgMBoOB7yB8UiqVSqXywYMHfAcpG/cu9uh4uQX6+PHje/bs8fPzi46ObtasWURExIkTJ/74449Dhw4tXbr0+PHjZX4Xy7JLliz5888/ExISatasyQ36+fmdOXOGu52ZmVmtWrVKDXJEIpFGoym+6+alROBvD5xSvwJ5lgkTCjdvls+erUxKKnian+PRT4JDFP/1Bf48cAT+JHB/ffyjIDwJD+FJIBwMD7ntk1BesLIXdmzcuLFZs2YzZ84cP358RETEzp0769at27Zt2969e7///vuPWdh67Nix69evz5gxIzAw0GazcXNOjRs3TktLS09PZ1k2JSWFW9dR8UEA1/PxYePi9OvXK06dsvMpDQAAAAgNU2azjoqKCgsLW7t2rUwmmz9//qRJk9q1a7dmzZoaNWo8/sd98cUX3333XfFdjUazdu1aIvrtt99WrVplNpsbNWpUvDldxQcfVXJ5tFvRaDQMw+Tm5vIdhE9SqVSr1ebk5HjoEg6OyURt2vj4+dm2b899si3ttFqtzWZz809LnE0mk2k0muzsbKvVyncWPvn4+JjN5oKCp/pAw9PJ5XJvb++srCy3nWpyDV9fX6PRKPAlHEqlUq1Wu+1bucv4+fnp9XqBL+FQqVRKpdJt1/Nw72KPjpddoJVK5ZYtW7p06UJEeXl5Wq32u+++69Onj9NjVpjb/qtDgaaqUqCJaOdO2ZAhmlWr8nr0MD3Bt6NAEwr0QyjQhAL9EAo0oUA/hAJNHlugy17CYTQadTodd5v7tuIFzQDC0bWrqV0787RpapMJV1UBAACAv9i5kAqAwE2bVnj7tvizzxR8BwEAAAB3gQIN8DgNG1pef9340UeqjAz8YwEAAACix2xjFxsbW7yK49G7O3fudG4uALcxaZL+++/l8+erFiwQ9AJWAAAA4JRdoAcNGvSYuwCCUq2abcwY/dy56rfeMjZo4NmnRQIAAMDTK7tAr1mzxsU5ANzZyJGGr75SfPCB+rvvBL2/CgAAABDWQANUhExGH3yg/+kn6a5dMr6zAAAAAM9QoAEqpGfPohYtzB98gC3tAAAAhA4FGqCiZs8uvHlTvGoVtrQDAAAQNBRogIqKjLQMHFi0YIHqwQP8wwEAABAuOz2ga9eupUZycnL69+/vtDwAbm3KlEKLhRITVXwHAQAAAN6Uuw/0woULiSglJYW7UezKlSv79+93diwA9+Tvb3vvPcOCBaohQwz161v5jgMAAAA8KLdAb9mypdQNjkgkSkxMdG4oADc2apThq68U06er16/P4zsLAAAA8KDcAv3TTz8RUdOmTbkbAMBRKNjJkwtHjPBOTZV16GDiOw4AAAC4mp010MeOHTt69OjVq1eJaMeOHX379p0xY4bZbHZJNgA31bdv0b/+ZU5IUOOfAgAAgADZKdCLFi1q2bLlyZMn79+/P3DgQJPJtHjx4smTJ7smHIB7YhiaMaPw0iXxl19iSzsAAADBsVOgk5KS5s2b169fv23bttWoUWPbtm3Lly/fuHGja8IBuK3GjS19+xZ9+KH6wQNcVwUAAEBY7BTojIyMjh07ElFqamrnzp0Zhqlbt+69e/dckg3ArU2ZUlhURIsWYUs7AAAAYbFToMPCwjZt2nTjxo3vv/+e2xP6wIEDNWvWdEk2ALdWs6Zt5EjDypXKK1fEfGcBAAAA17FToGfMmLFo0aKQkJBnn302Ojp6wYIFsbGxI0eOdE04ADf3/vuG6tVt06ap+Q4CAAAArlPuNnacmJiYy5cvp6WlNW/eXCqVNm3adNeuXS+//LJrwgG4OaWSnTChcPRo7337pO3bY0sOAAAAQbAzA01EWq325s2bixYtIiJ/f//27ds7PxWAxxg4sOiFFywJCV4WC99RAAAAwCXsFOjbt2+3atVqypQpCQkJRDRp0qSIiIjr16+7IhqAJxCJaPbsgrQ08ddfY0s7AAAAQbBToEeOHBkZGXnjxg2JREJEK1asCAkJiYuLc0k2AM/QtKklJqZo7lxVXh62tAMAAKj67BToAwcOxMbGikR/fVm1atUmTpy4f/9+p+cC8ChTp+rz85mkpL+3tDOZTCdOnDh9+rTVauUxGAAAADicnQKt1WqNRmPJEYvF4u3t7cxIAJ7nmWesI0YY//c/5bVrYiI6d+7cSy+91KJFi2bNmnXs2PHWrVt8B+RHSkpK69atfXx8YmJiTp06xXccAAAAx7BToLt16zZ16tScnBzu7tmzZ2NjY2NiYpwfDMDDxMbqfXxsM2eqiGjUqFFXr17lxs+dOxcfH89rNH6cOHFi8ODBZ86cycnJOXz48JtvvpmRkcF3KAAAAAewU6Dnz59PRNWrV7dYLL6+vpGRkaGhoYmJiS7JBuBJvLzYCRP027bJd+8uOnfuXMmHfvvtN5Zl+QrGl23btpW8e/v27dTUVL7CAAAAOFDZ+0DHxMQsWLAgLCxMq9Xu27fvl19+OX/+vFarjYiICA0NdXFEAE/x+uvGL75QzJlTnUhEZCseV6lUDCO48wsNBkOpkVLrwQAAADxU2TPQ27dvL162QUTNmjUbNmxYnz590J4BHkMkounTC8+elbZq9VnJ8cGDB/MViUeP7hn/0ksv8ZIEAADAsexfSAUAKq5VK3O3bqY//hjSuHF7jUaj0+nat2/fq1cvvnPxIDo6+r///S9328/Pb+nSpc8++yy/kQAAAByi3Et5p6WlKRTlXhgiKirKOXkAPF5AwPzs7PgTJz4kMhNZ9+071Lz5wLlzR7799tt8R3Mdk8n04YcffvLJN0T9iPyysm7NmjWrsLDwzTff5DsaAADA0yq3QA8ZMuQx3ybAM6IAKuLzzz9ftWov0Xiipg/HXiJ6e+LEjkFBQV26dOEznAuNHDly61YN0QUiDTfy55+34uNfz87OLp6WBgAA8FDlFuivvvoK08wAlWKz2ZKSkoiOEEn/+Yg/0fLExBECKdB79uzZuvUB0eZ/LhILItoxd26jfv36BQcH8xYOAADgqZVboJ999tmGDRu6MgqAp0tLS7tzJ4iozHbY/PTpGocPG728vCryo3S6SnzI4+XFisUV/XqlkuRy536CtGXLFqLRZZ1ioSF6Y/v27aNGjXJqAAAAAKcqt0ADQGVlZ2cT+Zf/+M7evV0XxiGkUlKrK9q2GYY0GhsR3b27sPznocW1a5sdlA4AAIAfZRfoHj166HQ6F0eplApO47meRCIhN47nGiKRiIhUKpXNZrP7xVXJM888Q5RezoMsUfTu3evVanWZD2dnV+IPKihgLJaKfrHBQBXff9lspsLCim5ZzbJUYrvLv33zzcGbN9sR1Sjrm3p89VWX338XR0ayERFsw4a2yEjW37/qn1MhEomkUqnAXxnEYjERlfdPQDgYhpHJZNzrpGBxB4PA/0UQEcMwcrmcezYEy0OLU9kFutQlxNzQo9docBPcPwO3jecaEolEJpMZjUar1cp3FpcKCgoKDn5w48YFovBHHkxt1iy3cWMiKnR9MBcrKjqyZMmfRGWeLJjYp09LlarJhQvijRvFRqOEiHQ6NizMGh5uDQuzPv+8tVEjq0pV1Sq1VCq1WCwCf2WQyWRSqdRoNAr8NHSZTIaDQS6XS6VSgT8JRCSXy81ms8AvMqVQKMRisdseDBKJpMxd6Tx1CYfbNjOWZRmGcdt4rsHNrNhsNgE+DxMnThwx4g2iXUTVSgxfJxoxadJCgTwhgwYNWrJkINFrj0xCHwsKWpyYOFCtzicii4XS08UXLohPn5ZcvCj++WfJl1/KuWYVEGCLirKEh1vr1bNERVnq1bNWgdk6lmUFcgCUh/tIymq1CrxAk1BfHkvijgGBPwkcHAxufjCU9/mApxZoAPfUr1+/rKysyZNfIBpC1JTIQnSYaOPy5dNatmzJdzoXefbZZz/++L+xsW2I5hN1I5IT5ROtJZqzdOmy4k/wJRIKDrYGB1u7dDFxI3l5zLVrf1XqtDTJ2rXyBw+URCSTUUiINSrKEhZmCQuzvviixd9fWKuDAADArTAeOhOQmZnJd4SyaTQahmFyc3P5DsInqVSq1WpzcnIsFV+oW7Wkp6dv2LDh+PHjYrG4VatWAwcO9PX15TuUqx0/fvzjjz/etesYkVinM0dHR48dO7ZOnTqV+iF374ouXhRfvCjhZqnPnxebTAwR6XQsNznNLfyIirIoFG76UpaRkTFp0qRDhw5JJJJXX311/PjxUqnU/rdVRXK53NvbOysry0PfdxzF19fXaDTq9Xq+g/BJqVSq1Wq3fSt3GT8/P71e77arF1xDpVIplcqsrCy+g5RNJpNpNJpHxzEDDeB4GRkZa9euvXXrFhFduXKlS5cuAizQjRo1KiwsJHpARDk5pFKpKtueiSgw0BYYaGvb1szdNZvpyhVxWpqEm6X+8UdZcrKYiCQSqlXrrybNLfxwn1Uf77777uHDh7nbSUlJEolkwoQJ/EYCAICnhBloB8MMNGEGmqh169YXL14svtuuXbtvvvmGxzy8+Pzzz8ePH19yZOvWrS1atHDsn5Kby1y4ILl48a+FH+fOSbhdRLy92bp1/6rUYWGWiAirnx8Pqz4yMzPr169fcuS55547evSo65O4A8xAczADTZiBfggz0IQZaADgZGdnl2zPRHT69Gnu7FK+IvHi999/f3TE4QVaq2WbNTM3a2YuHrl7V8St9+AWfnz7rZw7NSUgwFZ8VmJ4uDU83OrsC8oQUVFRUakRk8nk7D8UAACcDQUawMEe3czSy8tLaO2ZiGrVqlVqpHbt2i74cwMDbYGBpuKLpptMdPXqX2clXrgg3rpVnpysJCKplOrWtXJnJXKV+plnrA7/v1SrVq2GDRueO3eueKRz584O/jMAPM0PP/zw2WefPXjwoHHjxhMnTgwICOA7EUCloUADOJhUKn3nnXeSk5OLR9566y0e8/Bl8ODB69at4xaCE1FkZOTLL7/s+hgyGXHzzUR/TQbn5DDFZyVeuCDevVtmMDBEpNGw4eF/n5XYsKHFy8sBU9QrV678z3/+89tvvxFR7969ExISnv5ngkdz2+26XCM1NXXo0KHc7QsXLvz+++8pKSkymYzfVACVhQIN4HjTp08PCgravXu3RCLp1avX66+/znciHgQGBm7fvn3lypXp6enh4eH//ve/3eQ9Uqf7x6oPq5Vu3/57O+pffpGuXavgrqFZatVH/fpWmaxylZpl2QsXLtSsWbOwsFAmk3l7e1++fLlRo0YO/0u5v6NHjy5ZsuTevXuNGjWKj48PDAzkOxEPrl+/Hh8fv2/fPn9//zfeeGPChAkCvATd119/XfLumTNnTp8+3bRpU77yADwZnEToYDiJkHAS4UNardZms+Xn5/MdhE/c6RfZ2dkeNOtWatXHyZOS+/dFVNaqj+Dgx/2lTCbT8OHDt2/PJ/ov0QtERqL9RPMTEl4bM2aMi/4y7uHkyZMl166EhYXt3r1bqVTyGMn1rFZr+/btz58/XzwyZcqU0aNH8xiJFwMGDNi/f3/JkXXr1nXq1ImnODzDSYSEkwgBAKoGu6s+fvxRZjT+vR118aqPyEhLyYuQz549e/t2f6LviYp31AslGjhzZtuwsLAuxcu0BWDdunUl7168ePHo0aMdOnTgKw8vfvvtt4ftOYjIQJS5evXq9957T2gnSLRq1apUgX7xxRd5ygLw5FCgAQDsKLXqo9RFyH/5RbpmjaLURciDgwuXLTtLtL1Ee+ZoiRYnJY0VVIF+dG7JbWebnOTWrVtvv/020XSi0UQ+RER08saN/xszZswnn3wiqA796quvJiUlFRQUcHf79OkjwG3yoQpAgQYAqJxHL0LObUf9xx/iP/6Q/PGH+IsvFHl5SqID5fyA1seOXTabzcK5JGH9+vW3bt1acqRJkyZ8heHF6NGj79yZTTSsxNgLRCnr13dp3XrjK6+8wlcw11uyZElxeyaizZs3JyQkBAUF8RgJ4AmgQAMAPK1Ht6Neu/ZQXNxVov+W9eUM0a8DB2qDgkS1a9tq1bLVrGmrWdNaq5bNIft+uKGcnJxSI3fv3g0JCeEljOtdvnz58OGcf7ZnjoRozurVowVVoEvu6lg8ggINHgcFGgDA8SIivIi2lFOgzXL5QZVq0OnTopQUcXb23x/fazRszZq2WrWsNWvaata01a5trVGDu2FTKj24W6enp5cauXHjhsOvquOerFY6fPgK0cByHv9XqesuVXmP7gcfHBzMSxKAp4ECDQDgeJGRkUFB12/dSiOq98iDa7p23Zac3JO7YzAwt2+L7twR/fmn6PZt8Z07ojt3RMeOSe/cEeXl/d2tfX3ZwEBrqRlrrme74JKKT6lBgwbbt28vORIZGclXGIfLzBRlZjIZGaJ790RZWaK7d0X374vu32fu3hVlZYkyM0U22xvlfzeTl/fboEHe9erZQkOt9epZnnvOqtW6+//QpzFq1Kj169cX3+3evXupy90DeAQUaAAAxxOLxQkJCe++O4BoB1HJKbdDRFMnTNhUfF+pZENDraGhZeyIV1TE3L0run5ddPeu6N490Y0b4rt3Rb/9JvnuO3Fu7t/dWqdjAwJsgYG24GBryRvPPGMruSsIj0aMGLFjx47iz+6HDx/esGFDfiNVnNHI3LsnuntXlJNT+sa9e6I7d8Tmv1fukExGPj42nY4NDLRFRlq1WnNgoE2vv7Jw4WqihWX9+Eyd7rDR+NrWrZKbN8Xcqag6HRscbA0L+2vPxPBwa1CQVSQq67s9UHh4+LFjx9asWfPgwYMXXnhBmNvkQxWAfaAdDPtAE/aBfgj7QJNn7gPtQF9//fX7788j6k70AlER0f66dc8uXbr06U+h41pdqW59757o6lVxfn7Z3bq4XtepY6tVyypx7fyJ2Wzeu3dvVlZWeHh448aNXfpnP5bRyJTZjO/eFeXmitLTRQUF/9gig3tKtVpbYKCNez4DAv5qzAEBturVbY82XZvN1qJFi6tX1xH965E/f9SECZqxY8cSUV4ec+2a+MYN8YUL4osXxTduiM+fF5tMDBHJZGxIiC0szFKnjo3bObFePatHr+pRKpVqtdpt38pdBvtAk8fuA40C7WAo0IQC/RAKNAm+QBPR8ePH3377bW4RcJMmTb7++msfHx+n/ok5OUypVs3duH1bVFj4j25dasbaed36119/Xbx48a+//vrggTUoSBMdHf3+++8HBAQ4+I8pS1ERk51duh/n5v5Vke/eFZWcyyciuZwtsxlz//X3tz3ZpQMPHTrUp08s0WqitsXRiOZERm7evn27SqUq87vMZrpz5+8+feGC+I8/JFyhl0ioVi1rcZ8ODrY2aGD197c9STg+oEBzUKAJBdrF3PZfHQo0oUA/hAJNKNBEbdq0KXnxuWHDhiUmJvIVpsxuff166XUIXLcu2aq5G7VrW5+gPq5cuXLChM+JPiSKJlIQZRCtqFVr2bp1655+8avJRA8elNGMixtzRoao5LtccT8u1Yy5uzVrWp23teCWLVveeecdoueJGhHlE/3s7285cuSITqer1M/hLuvDXdMnLU1y/brIE9d+oEBzUKDJYws01kADADjL7du3S7ZnItq7dy9fYYhIp2N1Ou4ii+ZSD+XkMKVmrO/dE50+LUlPFxf/Iswt8C01Y83dKK+onT17dsKE5UQ/E/k/HKtONCk9/cW33357//79djfD5kr/o82Yu3H/vshWYtZVLmeLm3GzZuaSRVmrtQUF2dRq3uaM6tatS0REp4hOcSP+/g0q257pkcv60CNrPy5eFH//vayoiFv7QSEh1qq09gPATaBAAwA4i0KhuvAFwQAAHExJREFUsDviJnQ6VqezREWV8VCpbs0tvD59WnL7trj4cwWZjK1Rw1aqVQcHW//3v81EE0u052LRaWnPHThwoHXrl8tsxtx/s7JEJT/HKtmPw8Ksbduai6eQtVpbzZo2jcZ9q2F4eHhQUNCtW7eKR9q2bfuYr684jYaNirJERVl6/rWzSxlrP1JTZVVj7QeAm8ASDgfDEg7CEo6HsISDsISDqF+/fgcPHiy+O2HCBO6MsSrAZKJ798Tp6aJHt+HLzCw5HW175HrmnEKRSGmz/f2QXM5Wq8bWqGHz87NVr26rXt1WrZotMJD197f5+9sCAvicP3aIX375ZdSoUTdu3CCizp07Jycnl7f62Rlu3xZdviy+fFmSlia+fFmclia+d++vJ9/f3xYWZn3uOWtoqDU01PLcc9batW1Ovb44lnBwsISDPHYJBwq0g6FAEwr0QyjQhAJNlJWVNWXKlH379ikUildeeWXs2LESF+9/wYeiIoZr0iNHzvnzz8lEZbz9EJ1o2/bmG290Cgy0+flxs8ge+X5UKWazOTMzUy6X+/r68p2FcnOZy5fFly5JLl0SX7okTksT37jx14odlYrl+jRXrJ97zvLss1aZzDF/rslkunz5ssVi8fHxEfg1CFGgyWMLdNV/HQcA4JGfn9/SpUt9fHzMZnNBQQHfcVxELmdDQqwhIdaIiJN//vkrUaeyvmpVnz6hffoUuTocr6RSacOGDY1Go16v5zsLabVs48aWxo3/nul4dO3Hrl2y4o38AgJs4eHWp1n7YTKZEhMTv/rqq/v3I4i0RBcjIyVz5sxp3ry5I/9iAM6HAg0AAM7Ss2fP3bsXl1Wg7xNt6dx5Nw+ZoHxSKXEbsHTp8vdg8b4fXKX+8UfZihVPsu+H1WodPHhwamow0UWivzZzPHNmf0zMm+vWze3UqczfsgDcFAo0AAA4y4ABAzZs2HDoUBzRPCL5w+EbRANnz/6Pv/+jJxeC23HUvh8bNmxITVUTrSQquby6HdG2+PhuR44ccdtTbAEehQINAADOIhaL165dO2XKlC+/fI6oLVF1orQaNX6Lj48fNGgQ3+ngCVVk3499+2TFF8Xk1n5culSTaNE/2zMn4tatJgcPHuzcubPr/g4ATwcFGgAAnEitVi9cuHDChPsnT540Go2+vm2aNm0ql8vtfyd4jjLXfqSniy5f5k5PlFy+LL537yWi8i4/GXX58mUUaPAgKNAAAOB0/v7+MTEx3t7eWVlZHrr7E1RWrVq2WrVsbdv+tfbjhRea3L59lkhb1tdKBbA5DVQpbnmJTwAAAKha6tevT3S0nAfH7d49+Pz5yl8pHoAnKNAAAADgdIMHDyaaTmR65JFDfn7Lf/+9Vps2Pt27a7dulQt113jwJCjQAAAA4HRdu3YdOjSMqCvR2YdjRUTJRK9t2FD/zJnsJUvyCwqYf//bu3lzn08+UebmOvNaiABPBwUaAAAAXGHBggWffNI7LKw/URBRI6LavXv/cOzY5qioKJmMfeWVogMHcrZvz23UyDJ3rvr5533HjvVKS8O6DnBHWLQPAAAALvLaa6+99tprRUVFVqtVIpHIHrk+OLfn9M2b+tWrFWvWKNauVbz0kvmddwydO5sYTEmD28AMNAAAALiUTqd75plnHm3PxZ55xpqQUHjy5IPExIJ790SDBmlatPBZvlyp16NEg1tAgQYAAAB3pFazQ4YYDx7M3rQpt2FDy5Qp6shI30mT1Lduob0Az3AIAgAAgPtiGGrb1rxyZf7Ro9nDhhk3blQ0aeL7xhuaAwekfEcD4XJKgWZZNjY2Vq/XF4+cOnVq1KhRQ4cOXbZsmfXh/jQVHwQAAACBCwmxJiQUnjr1IDGx4No1cf/+2vbtdV9+qTAasa4DXM3xBTo1NXXatGlXr14tHjEYDImJibGxscnJyRkZGTt27KjUIAAAAADHy4sdMsR46FD2pk25NWvaxo3zeuEFn5kz1enp+FAdXMfxu3D4+/t369bt999/Lx45ceJEvXr1QkNDiahXr17r16/v2bNnxQe5H5Kfn//FF19wtxs3bvzCCy84PLlDiMVihmHUajXfQfgkEomISKlU2mw2vrPwSSwWi0QigR8MYrGYiJRKpcCv3swwjEQiEfjBQEQPHjxQq9U4GGQyGSPsHSUkEgkRPeW/iG7dqFs366VLxs8+k6xcqfz0U2VMjHXUKEuLFh7z1sMdDNybpmA55GBwPccX6MjISHr4rsnJzMwMCAjgbgcEBGRmZlZqkGMwGDZv3szdlsvlLVq0cHhyh+BeExUKBd9B+PeY06sFAgdDMblczncEnjEMIxKJSr4wCs3s2bMTEhKIqF69esuWLevQoQPfiXjD/TYl5IOhmENeHiMjackSmj2b/eIL+vhjcceO4saN6Z132CFDyCNefSUSCdcghYxhGLd9r7RYLGWOu+j/WfGv2izLFs89VHyQiKpXr56amlp8t2S3disajYZhmNzcXL6D8EkqlWq12tzc3PIOO4HQarU2my0/P5/vIHySyWQajSYnJ0fgpzT4+PiYzeaCggK+g/Bjy5YtXHsmorS0tGHDhu3atat69er8puKLr6+v0WgseZqQACmVSrVanZWV5cCfOWgQvf467d4tS05WjhghnTLF9uqrRe+8YwgMdN8JaT8/P71ebzAY+A7CJ5VKpVQqHXswOJBMJpNKyzhd1RWfGvj5+WVkZHC3MzMzq1WrVqlBAADwaD/++GPJu7dv3/7555/5CgNVmEhEXbqYNm3KTU3NiY42LV+uaNzY99//9j5+XOhTvOBwrijQjRs3TktLS09PZ1k2JSWlVatWlRoEAACP9uhyBSxgAKeKjLQsXFhw8mT2+PGFx49Lu3bVdeqk27BBLuyPRcGRXFGgVSpVXFzcvHnzRo4c6e3t3aNHj0oNAgCAR4uJiSl5NygoqGXLlnyFAeGoVs02Zozh2LEHK1fmy+Xse+95P/+87/z5qgcPBH0GJzgE46FnQ2MNtDvj1kDn5OT8f3t3GtTUuYcB/E2QhAQIa2SrGyoWxAVQQHvFpejgUqlorVVEO0oRpSjFqqNYl45aR6kLWK0GKChWEbResQZwA0fLVK1AkStSlREJEPYtCVvO/ZBbLi6txkJeY57fB+fk5JA+2DZ5cvJ/czADjRlo1Qx0bW0tZqB1eQaaEJKQkLBnz54nT56MGjVq+/btb+w3KWkAZqDJnzPQGn4pz83tdfgw78wZLovFfPhha0iI3NGR8osUZqCJNsxACwSC5/fr9DenAACAZgQEBBQUFCiVSrFYrMvtGSgaMaL9wIHGnJyalSvlly7pe3mZTp9u8u9/c3X73T1laWlpvr6+Y8eO3bZtm3adb8JYPQAAaIiOf/kxvAl691auWSNbtUouFnO++463ZIlxv378gABFQIDC1FQrP5PXXhcuXAgICFBtZ2dn5+TkJCUlacuzBM5AAwAAgG7hcJiZM1vE4rqLF+s8PNp37DB0cTEPDzcqLMTyVs3pvECeytWrVx89ekQpi9pQoAEAAEBHqeY67typCQ6Wp6ZyvbzM5swxSUvjaOcCMS3z/NzzGzsJ/TwUaAAAANBp1tbKNWtkeXk1+/c3SqVsf3+Bp6fZ4cM8mUw7xgm0lLu7+zN7nJycqCR5DSjQAAAAAITLZT7+uCUrqzY1td7Zuf2rrwydnc3XrzcsKcFcR49Yt25dZ4e2tbVNSEgwNDSkG+nVYREhAAAAwP95eLR5eLQVF8uOHjVISDCIieF5e7d+9pncy6tNS1a4aQeBQBAVFfXzzz83NTW5ubmNHz+ediI14Aw0AAAAwLP69+/YuLH5zp2aXbuaiov15swxGTvW7PBhnlyOEt0NKioq/P39PTz8t2wpj4xk5s+P9/T0PH/+PO1crwoFGgAAAODFjIyYgADFtWu1ycn19vYdERGGw4aZr19v+OQJGtTra2ho8PPzS0ubRsg9Qg4REkmIuKTkwuLFO1JTU2mneyX41w8AAADwd9hsMn58W2JiQ3Z27dy5isREAzc38wULBJmZ+rSjaaUDBw7cvz+TkNCni+hQQs5u3LixtbWVWrJXhgINAAAA8Ers7Tu2b2/Oz6/5+uvm//xHb84ck/ffN01IMGhpwVyHGs6dO0fIihfdM+TJk+HZ2dmaDqQ+FGgAAAAANRgbM599Jr95szYurtHIiAkPN3J1Ndu9m19ZiVr1YgoFq6SEfetWL7GYc/SoQVHRYkL6/8Wx7z5+/FiD0V4TvoUDAAAAQG16emTGjJYZM1ry83sdPmywdy9vzx7erFmtgYHyESPaaafTKIWCVVnJLi9nVVezpVK2VMqurmaXl7MqK1Ub7Kamp87Qs1grGIYh5IWn7WU8Hk8zsf8JFGgAAADQNLlcTjtCt3F2bt+/v2nTJlliIjcujnfyJHfEiPbAQLmfX4v+WzEj3dLCqq1l1dWxKirY5eVs1Z/19f/bqKtjSaXsrtdu5HIZa2ullZXS1JQZMqRNtaHaY2KitLNTfvrp7MzMCEK8n/tHMYRcHTlyseZ+t9eFAg0AAAAawjBMZGSkSCSqrq4eOXJkZGTk8OHDaYfqHhYWytBQ+YoV8osXOUeO8EJCjL/+2jAgQLF0qcLcXPnMwQ0NDVlZWVKplMPhjBw50tnZmUpmFVU/7mzDavVjD49n+/E77yiNjF5yJfTAwMDMzLWEXCOE//Q90ZMm2Q4cOLD7f8nuxmK083LvVVVVtCO8mEAgYLFY9fX1tIPQpK+vb2JiUldX196uW59hPcPExESpVDY2NtIOQhOHwxEIBLW1tR0dHbSz0GRmZtbW1tbU1EQ7CE1cLtfY2Li6ulpLX3e6i7m5uUKhkMlktIPQkZiYuGrVqs6bffv2zczMNDIyohiph+Tm9kpIMDh5kssw5MMPW1eskDs5/e81MTY29ttvv62omEzIu4Q0ECIeP95s//79tra2PZHkpf24ouKp0e2u/fiZjVfsx69i27Zte/dmErKdkEmEcAj5g5AoBwfxmTNnevfu/c8fv7uoXsWe348C3c1QoAkK9J9QoAkK9J9QoAkK9J90vED7+/unpaV13XP69Olx48bRytPTKivZP/7IFYl4ZWVsd/e2oCBFRcWh9euTCfmJEJsuBx4aNCgyIyPjNd5LKBT/H674h/3Y2lppY9PB4fzjX/vVXL58eceOHXfv3m1r41tY9Fq0aFFoaOibdjXvvyrQGOEAAAAA6BFCoTI0VL5smVws5h48yFuyxJiQjwlZRojx0wcu++OP+4cOHVq9evUzj/D3/biigl1X99RSvL+Zr9BwP36pjo6OnJwcQggh9dXVJC8vj8/nv+Rn3hgo0AAAAKAh06ZN63oGul+/fq6urhTzaAaHQ2bObJk5s+Xbb2/u2GFBSN8XHfXF0aMJSiW/spJdUcGuqmKpvs7imSuHW1gohULG0lJpZaV89912oVBpZcVYWip791YKhUpLS6UWLVuMiYnpevPixYvFxcUDBgyglUctKNAAAACgIfPnzy8rKxOJRFVVVS4uLrt3737TPrLvUUZGdwhpIcT9RXe+I5Gsj4tTWloyQqGyXz+lq2t7797K3r2VlpaMlZVSKFRaWGhTP36pysrK5/egQAMAAAA8Kzw8PCIigs1mNzc3086iaXw+n5C/WsRVb2c3MifnpkYDUTV69Oi8vLyue5ycnGiFURcumQMAAACaphUXy+h2bm5uhGQQ8sJ1tOJRo0ZoOhBV69atc3Fx6bwZGxurRd/HgjPQAAAAAJrg6Og4caLwypUoQkKfvqeKkIhly6LoxKLE1NRULBYXFBTIZLJBgwaZm5vTTqQGnIEGAAAA0JADBw44Oh4iJJAQ1Tx0OSEJhHh+883SUaNG0U6naWw2293dferUqdrVngnOQAMAAABojFAoTE9Pj42NTUpa+PjxYx6P5+XlFRx8+K25IqOOQIEGAAAA0BwDA4Ply5cvX77cwsJCJpPJ5XLaiUBtGOEAAAAAAFADCjQAAAAAgBpQoAEAAAAA1IACDQAAAACgBhRoAAAAAAA1oEADAAAAAKgBBRoAAAAAQA0o0AAAAAAAakCBBgAAAABQAwo0AAAAAIAaWAzD0M7wVklNTe3o6PD19aUdhKaysrLk5OR58+YJhULaWWhKSUkxNDT08fGhHYSm4uLic+fOLVq0SCAQ0M5C0/Hjx21tbSdMmEA7CE2FhYXp6elBQUEcDod2FppiY2MdHR3HjBlDOwhNeXl5WVlZISEhtINQdvDgQQ8PD1dXV9pBaPr1119zc3MDAwNpB1EPzkB3s8uXL2dkZNBOQZlUKo2Pj6+pqaEdhDKxWJyVlUU7BWUlJSXx8fFNTU20g1D2008/ZWdn005B2YMHD+Lj41tbW2kHoezUqVN37tyhnYKygoKChIQE2inoO3bsWH5+Pu0UlOXk5Jw4cYJ2CrWhQAMAAAAAqAEFGgAAAABADZiB7mbV1dUMw1haWtIOQlNra2tlZaVQKNTxScfKyko9PT1zc3PaQWhSKBTV1dXW1tZ6enq0s9AklUo5HI6pqSntIDTJZLLa2lobGxs2W6fP3ZSVlRkaGur4qoCmpqb6+no7OzvaQSiTSCTGxsbGxsa0g9DU0NDQ3NxsY2NDO4h6UKABAAAAANSg06cBAAAAAADUhQINAAAAAKCGXrQDvG0YhgkLC9u+fTufz6edhY5Lly6dOHFCJpMNHjw4ODjYysqKdiIKTp48eeHChfb29qFDh4aEhOj4fNutW7dEItGhQ4doB6EjPDy8qKhItT19+vSgoCC6eWgpLS2Njo5+/Pixvb39mjVrdPB/ipSUlPj4+K57jh49amJiQisPRRkZGSdPnpTL5c7Ozjr7DHnu3LmzZ8+2tbW5uroGBQUZGBjQTqRRz5elnJycI0eONDU1eXh4BAUFvfnLZnAGujtdvnx58+bNDx8+pB2EGolEEhcXt2bNmri4uL59++7bt492Igp+//33tLS03bt3x8TEEEJOnTpFOxFNUqn0u+++0+W1FuXl5YmJiSkpKSkpKUuXLqUdhw6GYbZu3TpnzpyEhIQ+ffqcOXOGdiIKZs2alfKniIgIT09P3WzPEonkyJEjmzdvjo2N5XK5x48fp52Igjt37pw+fXrLli3R0dFyuTw5OZl2Io16vizJ5fJdu3atWrXqyJEjUqn0/PnzFOO9IhTo7iQUCqdNm/bmv23qOeXl5d7e3oMHD+ZwOFOmTCktLaWdiAJTU9OwsDBLS0sul2tra6vLXzjQ3t4eGRk5f/582kGoaW5uZrPZxsbG+vr6+vr6OvvkkJeXZ2lp6ebmpqent2TJklmzZtFORAGbzVb9Z6BUKn/88cfg4GDaiehgs9l6enp8Pl9fX9/AwEA3nyELCgpGjx5tZ2dnbGw8derUX375hXYijXq+LN2+fdvBwUFVHnx9fa9fv04x3ivCCEd3GjZsGCFEZ18jCSGurq6qS5K2t7efOHHivffeo52Igj59+vTp0+fKlSsikUggEOzZs4d2ImpEIpGXl5eDgwPtINSUlZURQlauXCmVSh0cHIKDg62trWmHokAikXC53A0bNjx69Kh///46+6m9SmJi4vTp083MzGgHocPa2trPz+/TTz/l8XgCgSAqKop2Igr69+8fHx8vlUqNjIwuXbpUXV1NO5FGPV+WqqqqOgc+raysqqqq6CRThy6+84OeduPGjc8//1woFOrsB9aEkIkTJ0ZHRzs7O3///fe0s9Bx7dq1xsbG6dOn0w5Ck76+vo+Pz7Zt22JiYmxtbXX23VRzc3N+fv6iRYt++OGHIUOG7N27l3YiasrLy/Pz8729vWkHoaawsFAsFm/fvl31DHnw4EHaiSh47733vLy8Vq9eHRoaamZmZmRkRDsRfSwWS7XBMIxWTP2hQEN3YhgmKioqNTV148aNixYt0s3P5i5dupSZmUkIMTMze//99+/evUs7ER03bty4ffu2v7//2rVry8vL/f396+vraYfSNBsbm7lz5xoZGfH5/BkzZujsAglzc/OhQ4c6ODhwOJzJkyfr7N8DIeTKlSuTJ0+mnYKmW7dujRo1aujQoZaWlrNnz9a16QWVtra22bNnJyQkiESiYcOGad01RLqdhYWFVCpVbVdVVWnF1eh0sd9Az7l582ZxcfHWrVutra2VSqVSqaSdiAIOh5OUlCSVSmUyWXp6us4OMKxdu/bEiRPHjh3buXOntbX1sWPHdHDJ1PXr17/88suGhgaFQpGenu7s7Ew7ER0uLi737t27f/9+a2urWCx2dHSknYiarKyssWPH0k5Bk729/e3btyUSSUtLS3p6ur29Pe1EFNTV1a1YsaKqqkqhUKSkpEyZMoV2Isrc3Nzu379fWlrKMIxYLNaK+U/MQEN3KigoKCoq8vPzU90UCATHjh2jG0nz/vWvfxUVFYWHhxNCnJ2dly1bRjsRUDNhwoSSkpIVK1YQQpydnUNDQ2knosPMzGzlypV79uxpaGgYMmTIypUraSei4/79+2w2WwffSXY1ZsyY0tLSiIiIlpYWBweHsLAw2okoEAqFfn5+YWFhPB5vypQp48aNo52IMj6fHxYW9s0337S1tQ0fPnzGjBm0E70cLuUNAAAAAKAGjHAAAAAAAKgBBRoAAAAAQA0o0AAAAAAAakCBBgAAAABQAwo0AAAAAIAaUKABAAAAANSAAg0AoK0WLlzI6oLH440cOTIpKek1HqqwsJDFYung1SIBAF4DLqQCAKDFPD099+7dq9quq6uLiYn55JNPBg4c6ObmRjcYAMBbDAUaAECLmZqaenh4dN6cOHHi+fPnMzIyUKABAHoORjgAAN4eHA6Hy+VaWFgQQgoLC318fMzMzAQCwYQJE/Ly8lTH6OvrZ2dnz507197eftCgQcnJyc88yM2bN01NTQ8ePKjp9AAAWgIFGgDgLdHQ0LBr166Ojg4fHx9CyIIFC1paWpKTk8+ePcswTGBgYOeR69at27lzZ1FR0YIFCxYuXKhQKDrvys3N9fHx2bx5c3BwMIXfAQBAG2CEAwBAi4nFYhaL1XlTT0/v3Llzffr0YRhm7ty5c+bMsbe3J4RIJJJVq1Z1HvbRRx8NGDCAELJ06dKtW7eWlpaq9hcUFPj6+gYHB3c9GAAAnoECDQCgxbouIpRIJNHR0YsXL3748KGhoWFYWFhGRkZSUtK9e/cuXLjQ9aecnJxUG3w+v+v+Dz74gMViPXjwQDPhAQC0FAo0AIAWe2YRoaenp62t7W+//ebm5ubt7d3Q0ODr6+vt7e3h4fHVV191HsbhcF74aOvXr3dxcZk0aVJgYOCkSZN6PD0AgHZCgQYAeHvY2NgQQmpqaq5cuXL79m2JRKJaUCgSiV7lx5csWWJiYjJv3ryQkJDc3Fx9ff2ejQsAoJ2wiBAA4K1ibGxcU1MjEAhaW1vT0tIePnwoEom2bNnS2NjY+UUcf2/37t0lJSX79u3r6agAAFoKBRoA4K3i5OR04MCBcePGbdq06YsvvnB3d09LS7t69erUqVM3bNjw/PE8Ho/Nfuq1wM7ObtOmTVu2bOlcXAgAAF2xGIahnQEAAAAAQGvgDDQAAAAAgBpQoAEAAAAA1IACDQAAAACgBhRoAAAAAAA1oEADAAAAAKgBBRoAAAAAQA0o0AAAAAAAakCBBgAAAABQAwo0AAAAAIAaUKABAAAAANTwX9A76i6slRsqAAAAAElFTkSuQmCC" /><!-- --></p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>(<span class="fu">group_by</span>(out_NMF, rank) <span class="sc">|&gt;</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">Avg =</span> <span class="fu">mean</span>(value)) <span class="ot">-&gt;</span> avg_test_error_NMF)</span></code></pre></div>
+<pre><code>## # A tibble: 10 × 2
+##    rank    Avg
+##    &lt;fct&gt; &lt;dbl&gt;
+##  1 1     4193.
+##  2 2     3329.
+##  3 3     1516.
+##  4 4     1511.
+##  5 5     1328.
+##  6 6     1212.
+##  7 7     1307.
+##  8 8     1145.
+##  9 9      699.
+## 10 10     793.</code></pre>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>avg_test_error_NMF[<span class="fu">which</span>(avg_test_error_NMF<span class="sc">$</span>Avg <span class="sc">==</span> <span class="fu">min</span>(avg_test_error_NMF<span class="sc">$</span>Avg))[<span class="dv">1</span>], ]</span></code></pre></div>
+<pre><code>## # A tibble: 1 × 2
+##   rank    Avg
+##   &lt;fct&gt; &lt;dbl&gt;
+## 1 9      699.</code></pre>
+</div>
+<div id="nmtf" class="section level1">
+<h1>NMTF</h1>
+<p>Same as <code>NMF</code>, mask matrix <code>M</code> can be specified
+in <code>NMTF</code>, and the rank parameter (<code>rank</code>) with
+the smallest test error is considered the optimal rank. The following
+code is time-consuming and should be executed in your own
+environment.</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>out_NMTF <span class="ot">&lt;-</span> <span class="fu">expand.grid</span>(<span class="at">replicate=</span><span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>, <span class="at">rank2=</span><span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>, <span class="at">rank1=</span><span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>, <span class="at">value=</span><span class="dv">0</span>)</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>rank_NMTF <span class="ot">&lt;-</span> <span class="fu">paste0</span>(out_NMTF<span class="sc">$</span>rank1, <span class="st">&quot;-&quot;</span>, out_NMTF<span class="sc">$</span>rank2)</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>out_NMTF <span class="ot">&lt;-</span> <span class="fu">cbind</span>(out_NMTF, <span class="at">rank=</span><span class="fu">factor</span>(rank_NMTF, <span class="at">levels=</span><span class="fu">unique</span>(rank_NMTF)))</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>count <span class="ot">&lt;-</span> <span class="dv">1</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>){</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span>(j <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>){</span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>    masks_NMTF <span class="ot">&lt;-</span> <span class="fu">kFoldMaskTensor</span>(data_matrix, <span class="at">k=</span><span class="dv">3</span>)</span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span>(k <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>){</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>      out_NMTF[count, <span class="dv">4</span>] <span class="ot">&lt;-</span> <span class="fu">rev</span>(</span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>        <span class="fu">NMTF</span>(data_matrix,</span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>          <span class="at">M =</span> masks_NMTF[[k]],</span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>          <span class="at">rank =</span> <span class="fu">c</span>(i, j))<span class="sc">$</span>TestRecError)[<span class="dv">1</span>]</span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>      count <span class="ot">&lt;-</span> count <span class="sc">+</span> <span class="dv">1</span></span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(out_NMTF, <span class="fu">aes</span>(<span class="at">x=</span>rank, <span class="at">y=</span>value)) <span class="sc">+</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="fu">geom_point</span>() <span class="sc">+</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="fu">stat_summary</span>(<span class="at">fun =</span> mean, <span class="at">geom =</span> <span class="st">&quot;point&quot;</span>, <span class="at">shape=</span><span class="dv">21</span>, <span class="at">size=</span><span class="dv">3</span>, <span class="at">fill=</span><span class="st">&quot;blue&quot;</span>) <span class="sc">+</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="fu">stat_summary</span>(<span class="at">fun =</span> mean, <span class="at">geom =</span> <span class="st">&quot;line&quot;</span>, <span class="at">colour =</span> <span class="st">&quot;blue&quot;</span>, <span class="fu">aes</span>(<span class="at">group=</span><span class="dv">1</span>)) <span class="sc">+</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="fu">xlab</span>(<span class="st">&quot;Rank&quot;</span>) <span class="sc">+</span></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a><span class="fu">ylab</span>(<span class="st">&quot;Test Reconstruction Error&quot;</span>) <span class="sc">+</span></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a><span class="fu">theme</span>(<span class="at">axis.text.x =</span> <span class="fu">element_text</span>(<span class="at">angle =</span> <span class="dv">90</span>, <span class="at">hjust =</span> <span class="dv">1</span>))</span></code></pre></div>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>(out_NMTF <span class="sc">|&gt;</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(rank1, rank2) <span class="sc">|&gt;</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">Avg =</span> <span class="fu">mean</span>(value)) <span class="ot">-&gt;</span> avg_test_error_NMTF)</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>avg_test_error_NMTF[<span class="fu">which</span>(avg_test_error_NMTF<span class="sc">$</span>Avg <span class="sc">==</span> <span class="fu">min</span>(avg_test_error_NMTF<span class="sc">$</span>Avg))[<span class="dv">1</span>], ]</span></code></pre></div>
+</div>
+<div id="sinmf" class="section level1">
+<h1>siNMF</h1>
+<p>Same as <code>NMF</code>, mask matrices <code>M</code> can be
+specified in <code>siNMF</code>, and the rank parameter (<code>J</code>)
+with the smallest test error is considered the optimal rank. The
+following code is time-consuming and should be executed in your own
+environment.</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>out_siNMF <span class="ot">&lt;-</span> <span class="fu">expand.grid</span>(<span class="at">replicate=</span><span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>, <span class="at">rank=</span><span class="fu">factor</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>), <span class="at">value=</span><span class="dv">0</span>)</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>count <span class="ot">&lt;-</span> <span class="dv">1</span></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>){</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>  masks_siNMF <span class="ot">&lt;-</span> <span class="fu">lapply</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>, <span class="cf">function</span>(x){</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">list</span>(</span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>      <span class="fu">kFoldMaskTensor</span>(data_matrices[[<span class="dv">1</span>]], <span class="at">k=</span><span class="dv">3</span>)[[x]],</span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>      <span class="fu">kFoldMaskTensor</span>(data_matrices[[<span class="dv">2</span>]], <span class="at">k=</span><span class="dv">3</span>)[[x]],</span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>      <span class="fu">kFoldMaskTensor</span>(data_matrices[[<span class="dv">3</span>]], <span class="at">k=</span><span class="dv">3</span>)[[x]])</span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>  })</span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span>(j <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>){</span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>    out_siNMF[count, <span class="dv">3</span>] <span class="ot">&lt;-</span> <span class="fu">rev</span>(</span>
+<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a>      <span class="fu">siNMF</span>(data_matrices,</span>
+<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a>        <span class="at">M =</span> masks_siNMF[[j]],</span>
+<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a>        <span class="at">J =</span> i)<span class="sc">$</span>TestRecError)[<span class="dv">1</span>]</span>
+<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a>    count <span class="ot">&lt;-</span> count <span class="sc">+</span> <span class="dv">1</span></span>
+<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(out_siNMF, <span class="fu">aes</span>(<span class="at">x=</span>rank, <span class="at">y=</span>value)) <span class="sc">+</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="fu">geom_point</span>() <span class="sc">+</span></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a><span class="fu">stat_summary</span>(<span class="at">fun =</span> mean, <span class="at">geom =</span> <span class="st">&quot;point&quot;</span>, <span class="at">shape=</span><span class="dv">21</span>, <span class="at">size=</span><span class="dv">3</span>, <span class="at">fill=</span><span class="st">&quot;blue&quot;</span>) <span class="sc">+</span></span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a><span class="fu">stat_summary</span>(<span class="at">fun =</span> mean, <span class="at">geom =</span> <span class="st">&quot;line&quot;</span>, <span class="at">colour =</span> <span class="st">&quot;blue&quot;</span>, <span class="fu">aes</span>(<span class="at">group=</span><span class="dv">1</span>)) <span class="sc">+</span></span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a><span class="fu">xlab</span>(<span class="st">&quot;Rank&quot;</span>) <span class="sc">+</span></span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a><span class="fu">ylab</span>(<span class="st">&quot;Test Reconstruction Error&quot;</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>(out_siNMF <span class="sc">|&gt;</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(rank) <span class="sc">|&gt;</span></span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">Avg =</span> <span class="fu">mean</span>(value)) <span class="ot">-&gt;</span> avg_test_error_siNMF)</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>avg_test_error_siNMF[<span class="fu">which</span>(avg_test_error_siNMF<span class="sc">$</span>Avg <span class="sc">==</span> <span class="fu">min</span>(avg_test_error_siNMF<span class="sc">$</span>Avg))[<span class="dv">1</span>], ]</span></code></pre></div>
+</div>
+<div id="jnmf" class="section level1">
+<h1>jNMF</h1>
+<p>Same as <code>NMF</code>, mask matrices <code>M</code> can be
+specified in <code>jNMF</code>, and the rank parameter (<code>J</code>)
+with the smallest test error is considered the optimal rank. The
+following code is time-consuming and should be executed in your own
+environment.</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>out_jNMF <span class="ot">&lt;-</span> <span class="fu">expand.grid</span>(<span class="at">replicate=</span><span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>, <span class="at">rank=</span><span class="fu">factor</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>), <span class="at">value=</span><span class="dv">0</span>)</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>count <span class="ot">&lt;-</span> <span class="dv">1</span></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>){</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>  masks_jNMF <span class="ot">&lt;-</span> <span class="fu">lapply</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>, <span class="cf">function</span>(x){</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">list</span>(</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>      <span class="fu">kFoldMaskTensor</span>(data_matrices[[<span class="dv">1</span>]], <span class="at">k=</span><span class="dv">3</span>)[[x]],</span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>      <span class="fu">kFoldMaskTensor</span>(data_matrices[[<span class="dv">2</span>]], <span class="at">k=</span><span class="dv">3</span>)[[x]],</span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>      <span class="fu">kFoldMaskTensor</span>(data_matrices[[<span class="dv">3</span>]], <span class="at">k=</span><span class="dv">3</span>)[[x]])</span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>  })</span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span>(j <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>){</span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>    out_jNMF[count, <span class="dv">3</span>] <span class="ot">&lt;-</span> <span class="fu">rev</span>(</span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>      <span class="fu">jNMF</span>(data_matrices,</span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a>        <span class="at">M =</span> masks_jNMF[[j]],</span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>        <span class="at">J =</span> i)<span class="sc">$</span>TestRecError)[<span class="dv">1</span>]</span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a>    count <span class="ot">&lt;-</span> count <span class="sc">+</span> <span class="dv">1</span></span>
+<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
+<div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(out_jNMF, <span class="fu">aes</span>(<span class="at">x=</span>rank, <span class="at">y=</span>value)) <span class="sc">+</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="fu">geom_point</span>() <span class="sc">+</span></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a><span class="fu">stat_summary</span>(<span class="at">fun =</span> mean, <span class="at">geom =</span> <span class="st">&quot;point&quot;</span>, <span class="at">shape=</span><span class="dv">21</span>, <span class="at">size=</span><span class="dv">3</span>, <span class="at">fill=</span><span class="st">&quot;blue&quot;</span>) <span class="sc">+</span></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="fu">stat_summary</span>(<span class="at">fun =</span> mean, <span class="at">geom =</span> <span class="st">&quot;line&quot;</span>, <span class="at">colour =</span> <span class="st">&quot;blue&quot;</span>, <span class="fu">aes</span>(<span class="at">group=</span><span class="dv">1</span>)) <span class="sc">+</span></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a><span class="fu">xlab</span>(<span class="st">&quot;Rank&quot;</span>) <span class="sc">+</span></span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a><span class="fu">ylab</span>(<span class="st">&quot;Test Reconstruction Error&quot;</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb20"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>(out_jNMF <span class="sc">|&gt;</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(rank) <span class="sc">|&gt;</span></span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">Avg =</span> <span class="fu">mean</span>(value)) <span class="ot">-&gt;</span> avg_test_error_jNMF)</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>avg_test_error_jNMF[<span class="fu">which</span>(avg_test_error_jNMF<span class="sc">$</span>Avg <span class="sc">==</span> <span class="fu">min</span>(avg_test_error_jNMF<span class="sc">$</span>Avg))[<span class="dv">1</span>], ]</span></code></pre></div>
+</div>
+<div id="ntf" class="section level1">
+<h1>NTF</h1>
+<p>Same as <code>NMF</code>, mask tensor <code>M</code> can be specified
+in <code>NTF</code>, and the rank parameter (<code>rank</code>) with the
+smallest test error is considered the optimal rank. The following code
+is time-consuming and should be executed in your own environment.</p>
+<div class="sourceCode" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>out_NTF <span class="ot">&lt;-</span> <span class="fu">expand.grid</span>(<span class="at">replicate=</span><span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>, <span class="at">rank=</span><span class="fu">factor</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>), <span class="at">value=</span><span class="dv">0</span>)</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>count <span class="ot">&lt;-</span> <span class="dv">1</span></span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>){</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>  masks_NTF <span class="ot">&lt;-</span> <span class="fu">kFoldMaskTensor</span>(data_tensor, <span class="at">k=</span><span class="dv">3</span>)</span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span>(j <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>){</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>    out_NTF[count, <span class="dv">3</span>] <span class="ot">&lt;-</span> <span class="fu">rev</span>(</span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>      <span class="fu">NTF</span>(data_tensor,</span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a>        <span class="at">M =</span> masks_NTF[[j]],</span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a>        <span class="at">rank =</span> i)<span class="sc">$</span>TestRecError)[<span class="dv">1</span>]</span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a>    count <span class="ot">&lt;-</span> count <span class="sc">+</span> <span class="dv">1</span></span>
+<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb21-12"><a href="#cb21-12" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
+<div class="sourceCode" id="cb22"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(out_NTF, <span class="fu">aes</span>(<span class="at">x=</span>rank, <span class="at">y=</span>value)) <span class="sc">+</span></span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="fu">geom_point</span>() <span class="sc">+</span></span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a><span class="fu">stat_summary</span>(<span class="at">fun =</span> mean, <span class="at">geom =</span> <span class="st">&quot;point&quot;</span>, <span class="at">shape=</span><span class="dv">21</span>, <span class="at">size=</span><span class="dv">3</span>, <span class="at">fill=</span><span class="st">&quot;blue&quot;</span>) <span class="sc">+</span></span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a><span class="fu">stat_summary</span>(<span class="at">fun =</span> mean, <span class="at">geom =</span> <span class="st">&quot;line&quot;</span>, <span class="at">colour =</span> <span class="st">&quot;blue&quot;</span>, <span class="fu">aes</span>(<span class="at">group=</span><span class="dv">1</span>)) <span class="sc">+</span></span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a><span class="fu">xlab</span>(<span class="st">&quot;Rank&quot;</span>) <span class="sc">+</span></span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a><span class="fu">ylab</span>(<span class="st">&quot;Test Reconstruction Error&quot;</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb23"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>(<span class="fu">group_by</span>(out_NTF, rank) <span class="sc">|&gt;</span></span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">Avg =</span> <span class="fu">mean</span>(value)) <span class="ot">-&gt;</span> avg_test_error_NTF)</span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>avg_test_error_NTF[<span class="fu">which</span>(avg_test_error_NTF<span class="sc">$</span>Avg <span class="sc">==</span> <span class="fu">min</span>(avg_test_error_NTF<span class="sc">$</span>Avg))[<span class="dv">1</span>], ]</span></code></pre></div>
+</div>
+<div id="ntd" class="section level1">
+<h1>NTD</h1>
+<p>Same as <code>NMF</code>, mask tensor <code>M</code> can be specified
+in <code>NTD</code>, and the rank parameter (<code>rank</code>) with the
+smallest test error is considered the optimal rank. The following code
+is time-consuming and should be executed in your own environment.</p>
+<div class="sourceCode" id="cb24"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>out_NTD <span class="ot">&lt;-</span> <span class="fu">expand.grid</span>(<span class="at">replicate=</span><span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>, <span class="at">rank3=</span><span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>, <span class="at">rank2=</span><span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>, <span class="at">rank1=</span><span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>, <span class="at">value=</span><span class="dv">0</span>)</span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>rank_NTD <span class="ot">&lt;-</span> <span class="fu">paste0</span>(out_NTD<span class="sc">$</span>rank1, <span class="st">&quot;-&quot;</span>, out_NTD<span class="sc">$</span>rank2,</span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;-&quot;</span>, out_NTD<span class="sc">$</span>rank3)</span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>out_NTD <span class="ot">&lt;-</span> <span class="fu">cbind</span>(out_NTD, <span class="at">rank=</span><span class="fu">factor</span>(rank_NTD, <span class="at">levels=</span><span class="fu">unique</span>(rank_NTD)))</span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>count <span class="ot">&lt;-</span> <span class="dv">1</span></span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>){</span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span>(j <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>){</span>
+<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span>(k <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>){</span>
+<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a>      masks_NTD <span class="ot">&lt;-</span> <span class="fu">kFoldMaskTensor</span>(data_tensor, <span class="at">k=</span><span class="dv">3</span>)</span>
+<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a>      <span class="cf">for</span>(k <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>){</span>
+<span id="cb24-11"><a href="#cb24-11" aria-hidden="true" tabindex="-1"></a>        out_NTD[count, <span class="dv">5</span>] <span class="ot">&lt;-</span> <span class="fu">rev</span>(</span>
+<span id="cb24-12"><a href="#cb24-12" aria-hidden="true" tabindex="-1"></a>          <span class="fu">NTD</span>(data_tensor,</span>
+<span id="cb24-13"><a href="#cb24-13" aria-hidden="true" tabindex="-1"></a>            <span class="at">M =</span> masks_NTD[[k]],</span>
+<span id="cb24-14"><a href="#cb24-14" aria-hidden="true" tabindex="-1"></a>            <span class="at">rank =</span> <span class="fu">c</span>(i, j, k))<span class="sc">$</span>TestRecError)[<span class="dv">1</span>]</span>
+<span id="cb24-15"><a href="#cb24-15" aria-hidden="true" tabindex="-1"></a>        count <span class="ot">&lt;-</span> count <span class="sc">+</span> <span class="dv">1</span></span>
+<span id="cb24-16"><a href="#cb24-16" aria-hidden="true" tabindex="-1"></a>      }</span>
+<span id="cb24-17"><a href="#cb24-17" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb24-18"><a href="#cb24-18" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb24-19"><a href="#cb24-19" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
+<div class="sourceCode" id="cb25"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(out_NTD, <span class="fu">aes</span>(<span class="at">x=</span>rank, <span class="at">y=</span>value)) <span class="sc">+</span></span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a><span class="fu">geom_point</span>() <span class="sc">+</span></span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a><span class="fu">stat_summary</span>(<span class="at">fun =</span> mean, <span class="at">geom =</span> <span class="st">&quot;point&quot;</span>, <span class="at">shape=</span><span class="dv">21</span>, <span class="at">size=</span><span class="dv">3</span>, <span class="at">fill=</span><span class="st">&quot;blue&quot;</span>) <span class="sc">+</span></span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a><span class="fu">stat_summary</span>(<span class="at">fun =</span> mean, <span class="at">geom =</span> <span class="st">&quot;line&quot;</span>, <span class="at">colour =</span> <span class="st">&quot;blue&quot;</span>, <span class="fu">aes</span>(<span class="at">group=</span><span class="dv">1</span>)) <span class="sc">+</span></span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a><span class="fu">xlab</span>(<span class="st">&quot;Rank&quot;</span>) <span class="sc">+</span></span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a><span class="fu">ylab</span>(<span class="st">&quot;Test Reconstruction Error&quot;</span>) <span class="sc">+</span></span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a><span class="fu">theme</span>(<span class="at">axis.text.x =</span> <span class="fu">element_text</span>(<span class="at">angle =</span> <span class="dv">90</span>, <span class="at">hjust =</span> <span class="dv">1</span>))</span></code></pre></div>
+<div class="sourceCode" id="cb26"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>(out_NTD <span class="sc">|&gt;</span></span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(rank1, rank2, rank3) <span class="sc">|&gt;</span></span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">Avg =</span> <span class="fu">mean</span>(value)) <span class="ot">-&gt;</span> avg_test_error_NTD)</span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>avg_test_error_NTD[<span class="fu">which</span>(avg_test_error_NTD<span class="sc">$</span>Avg <span class="sc">==</span> <span class="fu">min</span>(avg_test_error_NTD<span class="sc">$</span>Avg))[<span class="dv">1</span>], ]</span></code></pre></div>
+</div>
+<div id="session-information" class="section level1 unnumbered">
+<h1 class="unnumbered">Session Information</h1>
+<pre><code>## R version 4.3.0 (2023-04-21)
+## Platform: x86_64-pc-linux-gnu (64-bit)
+## Running under: Ubuntu 22.04.2 LTS
+## 
+## Matrix products: default
+## BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
+## LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.20.so;  LAPACK version 3.10.0
+## 
+## locale:
+##  [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
+##  [3] LC_TIME=en_US.UTF-8        LC_COLLATE=C              
+##  [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
+##  [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
+##  [9] LC_ADDRESS=C               LC_TELEPHONE=C            
+## [11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
+## 
+## time zone: Etc/UTC
+## tzcode source: system (glibc)
+## 
+## attached base packages:
+## [1] stats     graphics  grDevices utils     datasets  methods   base     
+## 
+## other attached packages:
+## [1] dplyr_1.1.2    ggplot2_3.4.2  rTensor_1.4.8  nnTensor_1.2.0
+## 
+## loaded via a namespace (and not attached):
+##  [1] viridis_0.6.3      sass_0.4.6         utf8_1.2.3         generics_0.1.3    
+##  [5] tcltk_4.3.0        digest_0.6.31      magrittr_2.0.3     evaluate_0.21     
+##  [9] grid_4.3.0         RColorBrewer_1.1-3 fastmap_1.1.1      maps_3.4.1        
+## [13] jsonlite_1.8.5     misc3d_0.9-1       gridExtra_2.3      fansi_1.0.4       
+## [17] spam_2.9-1         viridisLite_0.4.2  scales_1.2.1       jquerylib_0.1.4   
+## [21] cli_3.6.1          rlang_1.1.1        munsell_0.5.0      withr_2.5.0       
+## [25] cachem_1.0.8       yaml_2.3.7         tools_4.3.0        colorspace_2.1-0  
+## [29] vctrs_0.6.2        R6_2.5.1           lifecycle_1.0.3    plot3D_1.4        
+## [33] MASS_7.3-60        pkgconfig_2.0.3    pillar_1.9.0       bslib_0.5.0       
+## [37] gtable_0.3.3       glue_1.6.2         Rcpp_1.0.10        fields_14.1       
+## [41] xfun_0.39          tibble_3.2.1       tidyselect_1.2.0   highr_0.10        
+## [45] knitr_1.43         farver_2.1.1       htmltools_0.5.5    rmarkdown_2.22    
+## [49] labeling_0.4.2     tagcloud_0.6       dotCall64_1.0-2    compiler_4.3.0</code></pre>
+</div>
+<div id="references" class="section level1 unnumbered">
+<h1 class="unnumbered">References</h1>
+<div id="refs" class="references csl-bib-body hanging-indent">
+<div id="ref-mask1" class="csl-entry">
+Fujita, N. et al. 2018. <span>“Biomarker Discovery by Integrated Joint
+Non-Negative Matrix Factorization and Pathway Signature
+Analyses.”</span> <em>Scientific Report</em> 8(1): 9743.
+</div>
+<div id="ref-mask2" class="csl-entry">
+Owen, A. B. et al. 2009. <span>“Bi-Cross-Validation of the SVD and the
+Nonnegative Matrix Factorization.”</span> <em>The Annals of Applied
+Statistics</em> 3(2): 564–94.
+</div>
+</div>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

@@ -1,8 +1,12 @@
+VERSION 1.3.0
+------------------------
+   o sym option in kFoldMaskTensor was added
+
 VERSION 1.2.0
 ------------------------
    o kFoldMaskTensor was modified to avoid NA
-   o NMF(), siNMF(), jNMF(), NTF(), and NTD() were modified to allow missing values (NA) in the input matrix/tensor
    o Vignette for kFoldMaskTensor was added
+   o NMF(), siNMF(), jNMF(), NTF(), and NTD() were modified to allow missing values (NA) in the input matrix/tensor
 
 VERSION 1.1.14
 ------------------------

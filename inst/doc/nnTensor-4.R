@@ -31,7 +31,7 @@ xlab("Rank") +
 ylab("Test Reconstruction Error")
 
 ## ----nmf_min, echo=TRUE-------------------------------------------------------
-(group_by(out_NMF, rank) |>
+(group_by(out_NMF, rank) %>%
   summarize(Avg = mean(value)) -> avg_test_error_NMF)
 avg_test_error_NMF[which(avg_test_error_NMF$Avg == min(avg_test_error_NMF$Avg))[1], ]
 
@@ -63,8 +63,8 @@ avg_test_error_NMF[which(avg_test_error_NMF$Avg == min(avg_test_error_NMF$Avg))[
 #  theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
 ## ----nmtf_min, echo=TRUE, eval=FALSE------------------------------------------
-#  (out_NMTF |>
-#    group_by(rank1, rank2) |>
+#  (out_NMTF %>%
+#    group_by(rank1, rank2) %>%
 #    summarize(Avg = mean(value)) -> avg_test_error_NMTF)
 #  avg_test_error_NMTF[which(avg_test_error_NMTF$Avg == min(avg_test_error_NMTF$Avg))[1], ]
 
@@ -96,8 +96,8 @@ avg_test_error_NMF[which(avg_test_error_NMF$Avg == min(avg_test_error_NMF$Avg))[
 #  ylab("Test Reconstruction Error")
 
 ## ----sinmf_min, echo=TRUE, eval=FALSE-----------------------------------------
-#  (out_siNMF |>
-#    group_by(rank) |>
+#  (out_siNMF %>%
+#    group_by(rank) %>%
 #    summarize(Avg = mean(value)) -> avg_test_error_siNMF)
 #  avg_test_error_siNMF[which(avg_test_error_siNMF$Avg == min(avg_test_error_siNMF$Avg))[1], ]
 
@@ -129,8 +129,8 @@ avg_test_error_NMF[which(avg_test_error_NMF$Avg == min(avg_test_error_NMF$Avg))[
 #  ylab("Test Reconstruction Error")
 
 ## ----jnmf_min, echo=TRUE, eval=FALSE------------------------------------------
-#  (out_jNMF |>
-#    group_by(rank) |>
+#  (out_jNMF %>%
+#    group_by(rank) %>%
 #    summarize(Avg = mean(value)) -> avg_test_error_jNMF)
 #  avg_test_error_jNMF[which(avg_test_error_jNMF$Avg == min(avg_test_error_jNMF$Avg))[1], ]
 
@@ -157,7 +157,7 @@ avg_test_error_NMF[which(avg_test_error_NMF$Avg == min(avg_test_error_NMF$Avg))[
 #  ylab("Test Reconstruction Error")
 
 ## ----ntf_min, echo=TRUE, eval=FALSE-------------------------------------------
-#  (group_by(out_NTF, rank) |>
+#  (group_by(out_NTF, rank) %>%
 #    summarize(Avg = mean(value)) -> avg_test_error_NTF)
 #  avg_test_error_NTF[which(avg_test_error_NTF$Avg == min(avg_test_error_NTF$Avg))[1], ]
 
@@ -192,8 +192,8 @@ avg_test_error_NMF[which(avg_test_error_NMF$Avg == min(avg_test_error_NMF$Avg))[
 #  theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
 ## ----ntd_min, echo=TRUE, eval=FALSE-------------------------------------------
-#  (out_NTD |>
-#    group_by(rank1, rank2, rank3) |>
+#  (out_NTD %>%
+#    group_by(rank1, rank2, rank3) %>%
 #    summarize(Avg = mean(value)) -> avg_test_error_NTD)
 #  avg_test_error_NTD[which(avg_test_error_NTD$Avg == min(avg_test_error_NTD$Avg))[1], ]
 
